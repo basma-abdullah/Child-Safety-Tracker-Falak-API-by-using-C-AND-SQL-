@@ -11,14 +11,14 @@ namespace FalaKAPP.Controllers
     public class UserController : ControllerBase
     {
         [HttpGet("login/{Username},{Password}")]
-        public IActionResult login(string username, string Password)
+        public IActionResult login(string Username, string Password)
         {
             var conn = DatabaseSettings.dbConn;
             conn.Open();
-            Boolean isexist = DatabaseSettings.isExists(username);
+            Boolean isexist = DatabaseSettings.isExists(Username);
             if(isexist)
             {
-                string sql = "SELECT * FROM PersonUsers WHERE Username = '" + username + "' AND Password = '" + Password + "'";
+                string sql = "SELECT * FROM PersonUsers WHERE Username = '" + Username + "' AND Password = '" + Password + "'";
                 SqlCommand Comm = new SqlCommand(sql, conn);
                 //query string
                 SqlDataReader reader = Comm.ExecuteReader();
@@ -59,7 +59,7 @@ namespace FalaKAPP.Controllers
             if (!isexist)
             {
                
-                string sqladd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType) VALUES ('" + user.PhoneNumber + "','" + user.UserType + "','" + user.FullName + "','" + user.Password + "','" + user.PhoneNumber + "','" + user.Gender + "','" + user.Email + "','Phone')";
+                string sqladd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType) VALUES ('" + user.Username + "','" + user.UserType + "','" + user.FullName + "','" + user.Password + "','" + user.PhoneNumber + "','" + user.Gender + "','" + user.Email + "','Phone')";
                 SqlCommand comm = new SqlCommand(sqladd, conn);
                 comm.ExecuteNonQuery();
                 conn.Close();

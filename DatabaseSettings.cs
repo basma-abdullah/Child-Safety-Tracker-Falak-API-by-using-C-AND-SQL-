@@ -8,12 +8,12 @@ namespace FalaKAPP
         public static SqlConnection dbConn = new SqlConnection("Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\Admin\\OneDrive\\المستندات\\FalakDB.mdf;Integrated Security=True;Connect Timeout=30");
 
         // validation functions
-        internal static bool isExists(string username)
+        internal static bool isExists(string Username)
         {
             string sql = "SELECT * FROM PersonUsers WHERE Username = @Username";
             using (SqlCommand cmd = new SqlCommand(sql, dbConn))
             {
-                cmd.Parameters.AddWithValue("@Username", username);
+                cmd.Parameters.AddWithValue("@Username", Username);
                 using (SqlDataReader reader = cmd.ExecuteReader())
                 {
              
