@@ -1,8 +1,11 @@
-﻿namespace FalaKAPP.Models
+﻿using System.Drawing;
+
+namespace FalaKAPP.Models
 {
     public class PersonChilds
     {
-        public DateOnly YearOfBirth { get; set; }
+        public int ChildID { get; set; }
+        public int YearOfBirth { get; set; }
         public string MainImagePath { get; set; }
         public string VerificationCode { get; set; }
         public string QRCode { get; set; }

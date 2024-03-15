@@ -13,5 +13,7 @@ namespace FalaKAPP.Models
         public string Gender { get; set; }
         public string Email { get; set; }
         [Required] public string UsernameType { get; set; }
+        public float Latitude { get; set; }
+        public float Longitude { get; set; }
     }
 }
