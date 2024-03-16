@@ -14,15 +14,19 @@ namespace FalaKAPP
         internal static bool isExists(string Username)
         {
             string sql = "SELECT * FROM PersonUsers WHERE Username = @Username";
+
             using (SqlCommand cmd = new SqlCommand(sql, dbConn))
             {
                 cmd.Parameters.AddWithValue("@Username", Username);
+                dbConn.Open();
                 using (SqlDataReader reader = cmd.ExecuteReader())
                 {
-             
-                    return reader.Read();
+                    bool exists = reader.Read();
+                    dbConn.Close();
+                    return exists;
                 }
             }
         }
     }
 }
+

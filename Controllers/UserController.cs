@@ -17,41 +17,44 @@ namespace FalaKAPP.Controllers
         [HttpGet("login/{Username},{Password}")]
         public IActionResult login(string Username, string Password)
         {
-            var conn = DatabaseSettings.dbConn;
-            conn.Open();
-            Boolean isexist = DatabaseSettings.isExists(Username);
-            if (isexist)
+            using (var conn = DatabaseSettings.dbConn)
             {
-                string sql = "SELECT * FROM PersonUsers WHERE Username = '" + Username + "' AND Password = '" + Password + "'";
-                SqlCommand Comm = new SqlCommand(sql, conn);
-                //query string
-                SqlDataReader reader = Comm.ExecuteReader();
-
-                if (reader.HasRows)
+                conn.Open();
+                bool isExist = DatabaseSettings.isExists(Username);
+                if (isExist)
                 {
-                    reader.Read();
-                    PersonUsers user = new PersonUsers
+                    string sql = "SELECT * FROM PersonUsers WHERE Username = @Username AND Password = @Password";
+                    SqlCommand command = new SqlCommand(sql, conn);
+                    command.Parameters.AddWithValue("@Username", Username);
+                    command.Parameters.AddWithValue("@Password", Password);
+
+                    SqlDataReader reader = command.ExecuteReader();
+
+                    if (reader.HasRows)
                     {
-                        UserID = reader.GetInt32(reader.GetOrdinal("UserID")),
-                        Username = reader.GetString(reader.GetOrdinal("Username")),
-                        UserType = reader.GetString(reader.GetOrdinal("UserType")),
-                        FullName = reader.GetString(reader.GetOrdinal("FullName")),
-                        Password = reader.GetString(reader.GetOrdinal("Password")),
-                        PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
-                        Gender = reader.GetString(reader.GetOrdinal("Gender")),
-                        Email = reader.GetString(reader.GetOrdinal("Email")),
-                        UsernameType = reader.GetString(reader.GetOrdinal("UsernameType")),
-                    };
+                        reader.Read();
+                        PersonUsers user = new PersonUsers
+                        {
+                            UserID = reader.GetInt32(reader.GetOrdinal("UserID")),
+                            Username = reader.GetString(reader.GetOrdinal("Username")),
+                            UserType = reader.GetString(reader.GetOrdinal("UserType")),
+                            FullName = reader.GetString(reader.GetOrdinal("FullName")),
+                            Password = reader.GetString(reader.GetOrdinal("Password")),
+                            PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
+                            Gender = reader.GetString(reader.GetOrdinal("Gender")),
+                            Email = reader.GetString(reader.GetOrdinal("Email")),
+                            UsernameType = reader.GetString(reader.GetOrdinal("UsernameType")),
+                        };
+
+                        reader.Close();
+                        return Ok(user);
+                    }
 
                     reader.Close();
-                    conn.Close();
-                    return Ok(user);
                 }
 
-                reader.Close();
+                return NotFound("User not found");
             }
-            conn.Close();
-            return NotFound("user not found");
         }
 
         [HttpPost("signup")]
@@ -96,7 +99,7 @@ namespace FalaKAPP.Controllers
             Boolean isexist = DatabaseSettings.isExists(Username);
             if (isexist)
             {
-                string sql = "UPDATE PersonUsers SET Password = '" + newPassword + "' WHERE Username = '" + Username + "'";
+                string sql = "UPDATE PersonUsers SET Password = '" + newPassword + "' WHERE ChildID = '" + Username + "'";
                 SqlCommand Command = new SqlCommand(sql, conn);
                 Command.ExecuteNonQuery();
                 conn.Close();

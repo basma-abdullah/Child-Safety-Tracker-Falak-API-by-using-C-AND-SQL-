@@ -1,9 +1,12 @@
 ﻿using FalaKAPP.Models;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Dynamic;
+using static YourNamespace.Controllers.QrCodeController;
 
 namespace FalaKAPP.Controllers
 {
@@ -11,77 +14,122 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class ChildActionController : ControllerBase
     {
-        [HttpPost("AddChild")]
-        public IActionResult AddChild([FromBody] AddChild child)
+        [HttpPut]
+        public IActionResult linklbyapplication(int userID , string childUserName , string childPassword) 
         {
             var conn = DatabaseSettings.dbConn;
-            try
+            
+            UserController userController = new UserController();
+            IActionResult loginResult = userController.login(childUserName, childPassword);
+            int childID=-1;
+            if (loginResult is OkObjectResult okResult && okResult.Value is List<PersonUsers> persons && persons.Count > 0)
             {
                 conn.Open();
-
-                string sqlchildadd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, 'Email')";
-                using (SqlCommand cmd = new SqlCommand(sqlchildadd, conn))
-                {
-                    cmd.Parameters.AddWithValue("@Username", child.Username);
-                    cmd.Parameters.AddWithValue("@UserType", child.UserType);
-                    cmd.Parameters.AddWithValue("@FullName", child.FullName);
-                    cmd.Parameters.AddWithValue("@Password", child.Password);
-                    cmd.Parameters.AddWithValue("@PhoneNumber", child.PhoneNumber);
-                    cmd.Parameters.AddWithValue("@Gender", child.Gender);
-                    cmd.Parameters.AddWithValue("@Email", child.Email);
-                    // Execute the SQL query
-                    cmd.ExecuteNonQuery();
-                }
-
-                string sql2 = "SELECT UserID FROM PersonUsers WHERE Username = @Username";
-                int UserID;
-                using (SqlCommand cmd2 = new SqlCommand(sql2, conn))
-                {
-                    cmd2.Parameters.AddWithValue("@Username", child.Username);
-                    SqlDataReader reader = cmd2.ExecuteReader();
-                    if (reader.Read())
-                    {
-                        UserID = reader.GetInt32(reader.GetOrdinal("UserID"));
-                    }
-                    else
-                    {
-                        reader.Close();
-                        return NotFound("User not found");
-                    }
-                    reader.Close();
-                }
-
-                string sql3 = "INSERT INTO PersonChilds (ChildID, KinshipT, YearOfBirth) VALUES (@ChildID, @KinshipT, @YearOfBirth)";
-                using (SqlCommand cmd3 = new SqlCommand(sql3, conn))
-                {
-                    cmd3.Parameters.AddWithValue("@ChildID", UserID);
-                    cmd3.Parameters.AddWithValue("@KinshipT", child.KinshipT);
-                    cmd3.Parameters.AddWithValue("@YearOfBirth", child.YearOfBirth);
-                    // Execute the SQL query
-                    cmd3.ExecuteNonQuery();
-                }
-
-                string sql4 = "INSERT INTO personChilds_Images (ChildID, ImagePath) VALUES (@ChildID, @ImagePath)";
-                using (SqlCommand cmd4 = new SqlCommand(sql4, conn))
-                {
-                    cmd4.Parameters.AddWithValue("@ChildID", UserID);
-                    cmd4.Parameters.AddWithValue("@ImagePath", child.ImagePath);
-                    // Execute the SQL query
-                    cmd4.ExecuteNonQuery();
-                }
-
-                return Ok("Successfully added");
+                childID = persons[0].UserID;
+                string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @userID WHERE ChildID = @childID";
+                SqlCommand command = new SqlCommand(sql, conn);
+                command.Parameters.AddWithValue("@userID", userID);
+                command.Parameters.AddWithValue("@childID", childID);
+                command.ExecuteNonQuery();
+                conn.Close();
             }
-            catch (Exception ex)
+            if (childID != -1)
             {
-                // Handle the exception here, log it or perform any necessary actions
-                return StatusCode(500, ex);
+                var childInfo = GetChildInformation(childID, userID);
+                var parentInfo = GetParentInformation(userID);
+
+                dynamic mergedInfo = new ExpandoObject();
+                mergedInfo.ChildInfo = childInfo;
+                mergedInfo.ParentInfo = parentInfo;
+
+                return Ok(mergedInfo);
             }
-            finally
+            else
             {
-                if (conn.State != ConnectionState.Closed)
-                    conn.Close();
+                conn.Close();
+                return BadRequest("User not created");
             }
+            
+        }
+
+        private ChildInformation GetChildInformation(int childId, int userId)
+        {
+            using (var connection = DatabaseSettings.dbConn)
+            {
+                connection.Open();
+
+                string query = $"SELECT p.FullName, c.YearOfBirth, p.Gender, c.AdditionalInformation, c.KinshipT, c.Boundry, c.MainImagePath " +
+                               $"FROM PersonUsers P, PersonChilds c " +
+                               $"WHERE c.childID = @childId AND c.MainPersonInChargeID = @userId";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@childId", childId);
+                    command.Parameters.AddWithValue("@userId", userId);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            // Retrieve the child information from the reader
+                            var fullName = reader.GetString(reader.GetOrdinal("FullName"));
+                            var yearOfBirth = reader.GetInt32(reader.GetOrdinal("YearOfBirth"));
+                            var gender = reader.GetString(reader.GetOrdinal("Gender"));
+                            var additionalInformation = reader.GetString(reader.GetOrdinal("AdditionalInformation"));
+                            var KinshipT = reader.GetString(reader.GetOrdinal("KinshipT"));
+                            var Boundry = reader.GetInt32(reader.GetOrdinal("Boundry"));
+                            var MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"));
+                            return new ChildInformation
+                            {
+                                FullName = fullName,
+                                YearOfBirth = yearOfBirth,
+                                Gender = gender,
+                                AdditionalInformation = additionalInformation,
+                                KinshipT = KinshipT,
+                                Boundry = Boundry,
+                                MainImagePath = MainImagePath
+                            };
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private ParentInformation GetParentInformation(int userId)
+        {
+            using (var connection = DatabaseSettings.dbConn )
+            {
+                connection.Open();
+
+                string query = $"SELECT u.PhoneNumber " +
+                               $"FROM PersonUsers u " +
+                               $"WHERE u.UserID = @userId";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@userId", userId);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            // Retrieve the parent information from the reader
+                           
+                            var phoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber"));
+
+                            return new ParentInformation
+                            {
+                                
+                                PhoneNumber = phoneNumber
+                            };
+                        }
+                    }
+                }
+            }
+
+            return null;
         }
 
         [HttpGet("ChildHome/{Username}")]
@@ -221,5 +269,22 @@ namespace FalaKAPP.Controllers
       }*/
 
 
+        public class ChildInformation
+        {
+            public string FullName { get; set; }
+            public int YearOfBirth { get; set; }
+            public string Gender { get; set; }
+            public string AdditionalInformation { get; set; }
+            public string KinshipT {  get; set; }
+            public int Boundry { get; set; }
+            public string MainImagePath { get; set; }
+        }
+
+        public class ParentInformation
+        {
+            public int PhoneNumber { get; set; }
+        }
+
     }
+
 }

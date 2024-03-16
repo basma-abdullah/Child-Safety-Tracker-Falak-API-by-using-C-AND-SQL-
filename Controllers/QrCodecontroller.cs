@@ -1,4 +1,4 @@
-﻿/*using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -19,7 +19,7 @@ namespace YourNamespace.Controllers
         public QrCodeController()
         {
             // Initialize the connection string
-            connectionString = "YourConnectionString";
+            connectionString = "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\Admin\\OneDrive\\المستندات\\FalakDB.mdf;Integrated Security=True;Connect Timeout=30";
         }
 
         [HttpGet("generateQrCode/{userId}/{childId}")]
@@ -45,25 +45,45 @@ namespace YourNamespace.Controllers
                                    $"Gender: {child.Gender}\n" +
                                    $"Additional Information: {child.AdditionalInformation}\n" +
                                    $"Parent Name: {parent.FullName}\n" +
-                                   $"Parent Phone: {parent.PhoneNumber}";
+                                   $"Parent Phone: {parent.PhoneNumber.ToString()}";
 
             // Create a QR code generator instance
             QRCodeGenerator qrGenerator = new QRCodeGenerator();
             QRCodeData qrCodeData = qrGenerator.CreateQrCode(qrCodeContent, QRCodeGenerator.ECCLevel.Q);
-           
+
             // Create a QR code instance
             QRCode qrCode = new QRCode(qrCodeData);
+
 
             // Convert the QR code to a bitmap image
             Bitmap qrCodeImage = qrCode.GetGraphic(pixelsPerModule: 10);
 
+
+
+
             // Save the QR code image to a memory stream
-            MemoryStream memoryStream = new MemoryStream();
-            qrCodeImage.Save(memoryStream, ImageFormat.Png);
-            memoryStream.Position = 0;
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                //qrCodeImage.Save(memoryStream, ImageFormat.Png);
+                //memoryStream.Position = 0;
+
+                // Convert the QR code image to a base64 string
+                string base64Image = ConvertImageToBase64(qrCodeImage);
+
+
+                // Store the QR code image in the database
+                StoreQrCodeInDatabase(childId, base64Image);
+            }
+
+            // Return a success response
+            return Ok("QR code generated and stored in the database.");
+            // Save the QR code image to a memory stream
+            //MemoryStream memoryStream = new MemoryStream();
+            //qrCodeImage.Save(memoryStream, ImageFormat.Png);
+            //memoryStream.Position = 0;
 
             // Return the QR code image as a file response
-            return File(memoryStream, "image/png", "qr_code.png");
+            //return File(memoryStream, "image/png", "qr_code.png");
         }
 
         private ChildInformation GetChildInformation(int childId, int userId)
@@ -72,8 +92,8 @@ namespace YourNamespace.Controllers
             {
                 connection.Open();
 
-                string query = $"SELECT c.FullName, c.YearOfBirth, c.Gender, c.AdditionalInformation " +
-                               $"FROM personChild c " +
+                string query = $"SELECT p.FullName, c.YearOfBirth, p.Gender, c.AdditionalInformation " +
+                               $"FROM PersonUsers P , PersonChilds c " +
                                $"WHERE c.childID = @childId AND c.MainPersonInChargeID = @userId";
 
                 using (SqlCommand command = new SqlCommand(query, connection))
@@ -113,7 +133,7 @@ namespace YourNamespace.Controllers
                 connection.Open();
 
                 string query = $"SELECT u.FullName, u.PhoneNumber " +
-                               $"FROM personUsers u " +
+                               $"FROM PersonUsers u " +
                                $"WHERE u.UserID = @userId";
 
                 using (SqlCommand command = new SqlCommand(query, connection))
@@ -126,7 +146,7 @@ namespace YourNamespace.Controllers
                         {
                             // Retrieve the parent information from the reader
                             var fullName = reader.GetString(reader.GetOrdinal("FullName"));
-                            var phoneNumber = reader.GetString(reader.GetOrdinal("PhoneNumber"));
+                            var phoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber"));
 
                             return new ParentInformation
                             {
@@ -140,20 +160,118 @@ namespace YourNamespace.Controllers
 
             return null;
         }
-    }
 
-    public class ChildInformation
-    {
-        public string FullName { get; set; }
-        public int YearOfBirth { get; set; }
-        public string Gender { get; set; }
-        public string AdditionalInformation { get; set; }
-    }
+        private void StoreQrCodeInDatabase(int childId, string qrCode)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
 
-    public class ParentInformation
-    {
-        public string FullName { get; set; }
-        public string PhoneNumber { get; set; }
+                string query = $"UPDATE PersonChilds SET QRCode = @qrCode WHERE ChildID = @childId";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@childId", childId);
+                    command.Parameters.AddWithValue("@qrCode", qrCode);
+
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        [HttpGet("getQrCode/{childId}")]
+        public IActionResult GetQrCode(int childId)
+        {
+            // Retrieve the QR code from the database based on the childId
+            string qrCodeString = GetQrCodeFromDatabase(childId);
+            if (string.IsNullOrEmpty(qrCodeString))
+            {
+                return NotFound("QR code not found");
+            }
+
+            // Convert the QR code string to a byte array
+            byte[] qrCodeBytes = Convert.FromBase64String(qrCodeString);
+
+            // Return the byte array as an image file
+            return File(qrCodeBytes, "image/png");
+        }
+
+        private string GetQrCodeFromDatabase(int childId)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                string query = $"SELECT QRCode FROM PersonChilds WHERE ChildID = @childId";
+
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@childId", childId);
+
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            // Check if the QRCode column is not null or empty
+                            if (!reader.IsDBNull(0))
+                            {
+                                return reader.GetString(0);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private Bitmap ConvertStringToImage(string qrCodeString)
+        {
+            try
+            {
+                // Convert the QR code string to a byte array
+                byte[] qrCodeBytes = Convert.FromBase64String(qrCodeString);
+
+                // Create a memory stream from the byte array
+                using (MemoryStream memoryStream = new MemoryStream(qrCodeBytes))
+                {
+                    // Create a bitmap image from the memory stream
+                    return new Bitmap(memoryStream);
+                }
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        private string ConvertImageToBase64(Bitmap image)
+        {
+            using (MemoryStream memoryStream = new MemoryStream())
+            {
+                image.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+                memoryStream.Position = 0;
+
+                byte[] imageBytes = memoryStream.ToArray();
+                string base64String = Convert.ToBase64String(imageBytes);
+
+                return base64String;
+            }
+        }
+
+
+        public class ChildInformation
+        {
+            public string FullName { get; set; }
+            public int YearOfBirth { get; set; }
+            public string Gender { get; set; }
+            public string AdditionalInformation { get; set; }
+        }
+
+        public class ParentInformation
+        {
+            public string FullName { get; set; }
+            public int PhoneNumber { get; set; }
+        }
     }
 }
-*/
