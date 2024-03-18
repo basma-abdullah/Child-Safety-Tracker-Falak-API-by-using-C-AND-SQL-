@@ -21,10 +21,19 @@ namespace FalaKAPP
                 dbConn.Open();
                 using (SqlDataReader reader = cmd.ExecuteReader())
                 {
-                    bool exists = reader.Read();
-                    dbConn.Close();
-                    return exists;
+                    if(reader.Read()) {
+                        bool exists = reader.Read();
+                        dbConn.Close();
+                        return exists;
+                    }
+                    else {
+                        reader.Close();
+                        dbConn.Close();
+                        return false; 
+                    }
+                    
                 }
+                
             }
         }
     }

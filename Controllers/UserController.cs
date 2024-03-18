@@ -60,10 +60,10 @@ namespace FalaKAPP.Controllers
         [HttpPost("signup")]
         public IActionResult signup([FromBody] PersonUsers user)
         {
-            var conn = DatabaseSettings.dbConn;
-            conn.Open();
-            using (conn){ 
-                Boolean isexist = DatabaseSettings.isExists(user.Username);
+            
+            
+            using (var conn = DatabaseSettings.dbConn){ 
+                bool isexist = DatabaseSettings.isExists(user.Username);
                 if (!isexist)
                 {
                     string sqladd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES ('" + user.Username + "', '" + user.UserType.ToLower() + "', '" + user.FullName + "', '" + user.Password + "', '" + user.PhoneNumber + "', '" + user.Gender + "', '" + user.Email + "', '" + user.UsernameType.ToLower() + "', '" + user.Latitude + "', '" + user.Longitude + "')";
@@ -86,8 +86,8 @@ namespace FalaKAPP.Controllers
                     }
                 }
             }
-            conn.Close();
-            return BadRequest(" user not created");
+            
+            return BadRequest(" this user is already exist try another username");
         }
 
 
