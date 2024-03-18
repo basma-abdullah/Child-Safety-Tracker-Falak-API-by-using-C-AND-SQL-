@@ -14,8 +14,9 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class ChildActionController : ControllerBase
     {
+        //link child to thier parent
         [HttpPut]
-        public IActionResult linklbyapplication(int userID , string childUserName , string childPassword) 
+        public IActionResult linkbyapplication(int userID , string childUserName , string childPassword) 
         {
             var conn = DatabaseSettings.dbConn;
             
@@ -52,6 +53,8 @@ namespace FalaKAPP.Controllers
             
         }
 
+
+        //to get child information from database 
         private ChildInformation GetChildInformation(int childId, int userId)
         {
             using (var connection = DatabaseSettings.dbConn)
@@ -97,6 +100,7 @@ namespace FalaKAPP.Controllers
             return null;
         }
 
+        //to get parent information for specific child
         private ParentInformation GetParentInformation(int userId)
         {
             using (var connection = DatabaseSettings.dbConn )
@@ -132,6 +136,7 @@ namespace FalaKAPP.Controllers
             return null;
         }
 
+        //to get children information and display result in home list 
         [HttpGet("ChildHome/{Username}")]
         public IActionResult Getchild(string Username)
         {
@@ -163,7 +168,7 @@ namespace FalaKAPP.Controllers
 
 
 
-
+        //to get more deteail information when click on specific child 
         [HttpGet("ChildProfile/{childID}")]
         public IActionResult ChildProfile(string childID)
         {
@@ -226,47 +231,6 @@ namespace FalaKAPP.Controllers
 
 
         }
-
-        [HttpGet("link/{Username},{Password}")]
-        public IActionResult link(string Username, string Password)
-        {
-            var conn = DatabaseSettings.dbConn;
-            conn.Open();
-            string sql = "SELECT * FROM PersonUsers WHERE Username = '" + Username + "' AND Password = '" + Password + "'";
-            SqlCommand Comm = new SqlCommand(sql, conn);
-            //query 
-
-            SqlDataReader reader = Comm.ExecuteReader();
-
-            if (reader.Read())
-            {
-
-                reader.Close();
-                conn.Close();
-
-                return Ok(reader);
-            }
-            reader.Close();
-            conn.Close();
-            return NotFound("child not found");
-        }
-
-        /* [HttpPut("TrackingType/")]
-      public IActionResult TrackingType()
-      {
-          var conn = PersonUserController.dbConn;
-          conn.Open();
-          string sql = "UPDATE PersonUsers SET Password = '" + Password + "' WHERE Username = '" + Username + "'";
-          SqlCommand Command = new SqlCommand(sql, conn);
-          int rowsAffected = Command.ExecuteNonQuery();
-          conn.Close();
-          if (rowsAffected > 0)
-          {
-              return Ok("updated");
-          }
-
-          return NotFound("user not found");
-      }*/
 
 
         public class ChildInformation
