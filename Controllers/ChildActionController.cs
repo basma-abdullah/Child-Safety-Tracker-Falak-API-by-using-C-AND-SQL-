@@ -6,7 +6,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Dynamic;
-using static YourNamespace.Controllers.QrCodeController;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+using static QRCodes.Controllers.QrCodeController;
 
 namespace FalaKAPP.Controllers
 {
@@ -14,126 +15,67 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class ChildActionController : ControllerBase
     {
-        //link child to thier parent
+        //link child to thier parent 
         [HttpPut]
-        public IActionResult linkbyapplication(int userID , string childUserName , string childPassword) 
+        public IActionResult linkchild([FromForm] int parentuserid, [FromForm] int childid, [FromForm] string kinshipT, [FromForm]  int Boundry, [FromForm] string AdditionalInformation)
         {
-            var conn = DatabaseSettings.dbConn;
-            
-            UserController userController = new UserController();
-            IActionResult loginResult = userController.login(childUserName, childPassword);
-            int childID=-1;
-            if (loginResult is OkObjectResult okResult && okResult.Value is List<PersonUsers> persons && persons.Count > 0)
+            int affectedRows = 0;
+
+            if (DatabaseSettings.isIdExists(parentuserid) && DatabaseSettings.isIdExists(childid))
             {
-                conn.Open();
-                childID = persons[0].UserID;
-                string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @userID WHERE ChildID = @childID";
-                SqlCommand command = new SqlCommand(sql, conn);
-                command.Parameters.AddWithValue("@userID", userID);
-                command.Parameters.AddWithValue("@childID", childID);
-                command.ExecuteNonQuery();
-                conn.Close();
+                using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn.ConnectionString))
+                {
+                    string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @UserID, kinshipT = @KinshipT, Boundry = @Boundry, AdditionalInformation = @AdditionalInformation WHERE ChildID = @ChildID";
+
+                    using (SqlCommand command = new SqlCommand(sql, conn))
+                    {
+                        command.Parameters.AddWithValue("@UserID", parentuserid);
+                        command.Parameters.AddWithValue("@ChildID", childid);
+                        command.Parameters.AddWithValue("@KinshipT", kinshipT);
+                        command.Parameters.AddWithValue("@Boundry", Boundry);
+                        command.Parameters.AddWithValue("@AdditionalInformation", AdditionalInformation);
+
+                        conn.Open();
+                        affectedRows = command.ExecuteNonQuery();
+                    }
+                }
             }
-            if (childID != -1)
+
+            if (affectedRows > 0)
             {
-                var childInfo = GetChildInformation(childID, userID);
-                var parentInfo = GetParentInformation(userID);
-
-                dynamic mergedInfo = new ExpandoObject();
-                mergedInfo.ChildInfo = childInfo;
-                mergedInfo.ParentInfo = parentInfo;
-
-                return Ok(mergedInfo);
+                return Ok("link success");
             }
             else
             {
-                conn.Close();
-                return BadRequest("User not created");
+                return BadRequest("not linked");
             }
-            
         }
 
 
-        //to get child information from database 
-        private ChildInformation GetChildInformation(int childId, int userId)
+        //link by verification code will be invoked when user enter 4  digit code for link by application
+        [HttpGet]
+        public IActionResult verify_verification_code(int ChildID, int VerificationCode)
         {
-            using (var connection = DatabaseSettings.dbConn)
+            using (var conn = DatabaseSettings.dbConn)
             {
-                connection.Open();
+                conn.Open();
+                string sql = "SELECT * FROM PersonChilds WHERE ChildID = @ChildID AND VerificationCode = @VerificationCode";
+                SqlCommand Comm = new SqlCommand(sql, conn);
+                Comm.Parameters.AddWithValue("@ChildID", ChildID);
+                Comm.Parameters.AddWithValue("@VerificationCode", VerificationCode);
+                SqlDataReader reader = Comm.ExecuteReader();
 
-                string query = $"SELECT p.FullName, c.YearOfBirth, p.Gender, c.AdditionalInformation, c.KinshipT, c.Boundry, c.MainImagePath " +
-                               $"FROM PersonUsers P, PersonChilds c " +
-                               $"WHERE c.childID = @childId AND c.MainPersonInChargeID = @userId";
-
-                using (SqlCommand command = new SqlCommand(query, connection))
+                if (reader.Read())
                 {
-                    command.Parameters.AddWithValue("@childId", childId);
-                    command.Parameters.AddWithValue("@userId", userId);
-
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            // Retrieve the child information from the reader
-                            var fullName = reader.GetString(reader.GetOrdinal("FullName"));
-                            var yearOfBirth = reader.GetInt32(reader.GetOrdinal("YearOfBirth"));
-                            var gender = reader.GetString(reader.GetOrdinal("Gender"));
-                            var additionalInformation = reader.GetString(reader.GetOrdinal("AdditionalInformation"));
-                            var KinshipT = reader.GetString(reader.GetOrdinal("KinshipT"));
-                            var Boundry = reader.GetInt32(reader.GetOrdinal("Boundry"));
-                            var MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"));
-                            return new ChildInformation
-                            {
-                                FullName = fullName,
-                                YearOfBirth = yearOfBirth,
-                                Gender = gender,
-                                AdditionalInformation = additionalInformation,
-                                KinshipT = KinshipT,
-                                Boundry = Boundry,
-                                MainImagePath = MainImagePath
-                            };
-                        }
-                    }
+                    reader.Close();
+                    return Ok();
+                }
+                else
+                {
+                    reader.Close();
+                    return BadRequest();
                 }
             }
-
-            return null;
-        }
-
-        //to get parent information for specific child
-        private ParentInformation GetParentInformation(int userId)
-        {
-            using (var connection = DatabaseSettings.dbConn )
-            {
-                connection.Open();
-
-                string query = $"SELECT u.PhoneNumber " +
-                               $"FROM PersonUsers u " +
-                               $"WHERE u.UserID = @userId";
-
-                using (SqlCommand command = new SqlCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@userId", userId);
-
-                    using (SqlDataReader reader = command.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            // Retrieve the parent information from the reader
-                           
-                            var phoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber"));
-
-                            return new ParentInformation
-                            {
-                                
-                                PhoneNumber = phoneNumber
-                            };
-                        }
-                    }
-                }
-            }
-
-            return null;
         }
 
         //to get children information and display result in home list 
@@ -233,22 +175,9 @@ namespace FalaKAPP.Controllers
         }
 
 
-        public class ChildInformation
-        {
-            public string FullName { get; set; }
-            public int YearOfBirth { get; set; }
-            public string Gender { get; set; }
-            public string AdditionalInformation { get; set; }
-            public string KinshipT {  get; set; }
-            public int Boundry { get; set; }
-            public string MainImagePath { get; set; }
-        }
-
-        public class ParentInformation
-        {
-            public int PhoneNumber { get; set; }
+    
         }
 
     }
 
-}
+

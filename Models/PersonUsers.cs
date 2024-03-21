@@ -1,9 +1,11 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace FalaKAPP.Models
 {
     public class PersonUsers
     {
+        [JsonIgnore]
         public int UserID { get; set; }
         [Required] public string Username { get; set; }
         [Required] public string UserType { get; set; }

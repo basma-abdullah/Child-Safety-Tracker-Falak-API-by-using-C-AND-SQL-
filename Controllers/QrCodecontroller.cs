@@ -8,7 +8,7 @@ using System.IO;
 using QRCoder;
 
 
-namespace YourNamespace.Controllers
+namespace QRCodes.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -22,6 +22,7 @@ namespace YourNamespace.Controllers
             connectionString = "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\Admin\\OneDrive\\المستندات\\FalakDB.mdf;Integrated Security=True;Connect Timeout=30";
         }
 
+        //this will generate qrcode information to use in child card
         [HttpGet("generateQrCode/{userId}/{childId}")]
         public IActionResult GenerateQrCode(int userId, int childId)
         {
@@ -167,7 +168,7 @@ namespace YourNamespace.Controllers
             {
                 connection.Open();
 
-                string query = $"UPDATE PersonChilds SET QRCode = @qrCode WHERE ChildID = @childId";
+                string query = $"UPDATE PersonChilds SET QRCodeInfo = @qrCode WHERE ChildID = @childId";
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
@@ -202,7 +203,7 @@ namespace YourNamespace.Controllers
             {
                 connection.Open();
 
-                string query = $"SELECT QRCode FROM PersonChilds WHERE ChildID = @childId";
+                string query = $"SELECT QRCodeInfo FROM PersonChilds WHERE ChildID = @childId";
 
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
@@ -272,6 +273,30 @@ namespace YourNamespace.Controllers
         {
             public string FullName { get; set; }
             public int PhoneNumber { get; set; }
+        }
+
+
+
+        //generate link qrcode in child phone
+        public static string GenerateAndStoreQRCode(int childID)
+        {
+            // Generate QR code
+            QRCodeGenerator qrGenerator = new QRCodeGenerator();
+            QRCodeData qrCodeData = qrGenerator.CreateQrCode(childID.ToString(), QRCodeGenerator.ECCLevel.Q);
+            QRCode qrCode = new QRCode(qrCodeData);
+
+            // Convert QR code to image
+            Bitmap qrCodeImage = qrCode.GetGraphic(20);
+
+            // Convert image to Base64 string
+            string base64String;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                qrCodeImage.Save(ms, ImageFormat.Png);
+                byte[] imageBytes = ms.ToArray();
+                base64String = Convert.ToBase64String(imageBytes);
+            }
+            return base64String;
         }
     }
 }
