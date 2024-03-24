@@ -67,7 +67,6 @@ namespace FalaKAPP
         internal static int getID(string Username)
         {
             int userid;
-            //string connectionString = "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\Admin\\OneDrive\\FalakDB.mdf;Integrated Security=True;Connect Timeout=30";
             using (SqlConnection conn = new SqlConnection(dbConn))
             {
                 string sql = "SELECT UserID FROM PersonUsers WHERE username = @username";
@@ -95,6 +94,8 @@ namespace FalaKAPP
                 }
             }
         }
+
+
         internal static ActionResult<PersonUsers> GetByID(int UserID)
         {
             using (SqlConnection conn = new SqlConnection(dbConn))

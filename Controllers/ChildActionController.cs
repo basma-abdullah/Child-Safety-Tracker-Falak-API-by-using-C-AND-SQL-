@@ -20,13 +20,13 @@ namespace FalaKAPP.Controllers
         public IActionResult linkchild([FromForm] int parentuserid, [FromForm] int childid, [FromForm] string kinshipT, [FromForm]  int Boundry, [FromForm] string AdditionalInformation)
         {
             int affectedRows = 0;
-
+            bool insertfollowchild = false;
             if (DatabaseSettings.isIdExists(parentuserid) && DatabaseSettings.isIdExists(childid))
             {
                 using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
                     string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @UserID, kinshipT = @KinshipT, Boundry = @Boundry, AdditionalInformation = @AdditionalInformation WHERE ChildID = @ChildID";
-
+                    ;
                     using (SqlCommand command = new SqlCommand(sql, conn))
                     {
                         command.Parameters.AddWithValue("@UserID", parentuserid);
@@ -38,11 +38,14 @@ namespace FalaKAPP.Controllers
                         conn.Open();
                         affectedRows = command.ExecuteNonQuery();
                     }
+                     insertfollowchild = SettingController.insertorupdateAppMethod(childid, parentuserid);
+                    
                 }
             }
 
-            if (affectedRows > 0)
+            if (affectedRows > 0 && insertfollowchild)
             {
+                // 
                 return Ok("link success");
             }
             else

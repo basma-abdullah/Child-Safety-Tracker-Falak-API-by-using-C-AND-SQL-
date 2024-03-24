@@ -8,7 +8,6 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class SettingController : ControllerBase
     {
-
         //personal information API 
         //change phonenumber 
         [HttpPut("changeEmailAndName/{UserID}")]
@@ -118,7 +117,7 @@ namespace FalaKAPP.Controllers
 
 
 
-        // to delete child from parent
+        // to delete or unlink child from parent
         [HttpPut("unlinkchild/{ChildID}")]
         public IActionResult unlinkchild(int ChildID)
         {
@@ -126,7 +125,7 @@ namespace FalaKAPP.Controllers
             {
                 conn.Open();
                 Boolean isexist = DatabaseSettings.isIdExists(ChildID);
-                if (isexist== true)
+                if (isexist == true)
                 {
                     string sql = "UPDATE PersonChilds SET MainPersonInChargeID = NULL , KinshipT = NULL  WHERE ChildID = @ChildID";
                     SqlCommand command = new SqlCommand(sql, conn);
@@ -137,17 +136,19 @@ namespace FalaKAPP.Controllers
                     conn.Close();
                     return Ok("Sucessfully deleted");
                 }
-               
+
                 conn.Close();
                 return NotFound("error");
 
-            
+
             }
         }
 
 
 
-        // child tracking management 
+
+  
+
 
 
 
@@ -169,7 +170,7 @@ namespace FalaKAPP.Controllers
             SqlCommand command = new SqlCommand(sql, conn);
             command.Parameters.AddWithValue("@UserID", UserID);
 
-           SqlDataReader reader = command.ExecuteReader();
+            SqlDataReader reader = command.ExecuteReader();
 
             List<object> children = new List<object>();
 
@@ -196,5 +197,183 @@ namespace FalaKAPP.Controllers
         }
 
 
+
+
+
+        //to get a list of all available tracking method for one child 
+        [HttpGet("TrackingOption/{UserID,childID}")]
+        public static List<string> AvailableTrackingType(int userID ,int childID)
+        {
+            List<string> trackingOption = new List<string>();
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                conn.Open();
+                string sql = "SELECT FC.TrackByApp, FC.TrackByDevice FROM FollowChilds FC " +
+                             "INNER JOIN PersonChilds PC ON FC.ChildId = PC.ChildID " +
+                             "WHERE PC.ChildID = @ChildID AND PC.MainPersonInChargeID = @UserID";
+                using (SqlCommand command = new SqlCommand(sql, conn))
+                {
+                    command.Parameters.AddWithValue("@ChildID", childID);
+                    command.Parameters.AddWithValue("@UserID", userID);
+
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read())
+                    {
+                        bool app = reader.GetBoolean(reader.GetOrdinal("TrackByApp"));
+                        bool device = reader.GetBoolean(reader.GetOrdinal("TrackByDevice"));
+
+                        if (app && device)
+                        {
+                            trackingOption.Add("app");
+                            trackingOption.Add("device");
+                        }
+                        else if (app && !device)
+                        {
+                            trackingOption.Add("app");
+                        }
+                        else if (!app && device)
+                        {
+                            trackingOption.Add("device");
+                        }
+                    }
+                }
+            }
+
+            trackingOption.Add("hascard");
+            return trackingOption;
+        }
+
+        [HttpPut("updateDefualtTrackingMethod/{UserID,childID,TrackingActiveType}")]
+        public IActionResult updateDefualtTrackingMethod(int UserID , int ChildID , string TrackingActiveType)
+        {
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                conn.Open();
+                string sql = "UPDATE FollowChilds SET TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND userID =@MainPersonInChargeID ";
+                using (SqlCommand command = new SqlCommand(sql, conn))
+                {
+                    command.Parameters.AddWithValue("@UserID", UserID);
+                    command.Parameters.AddWithValue("@ChildID", ChildID);
+                    command.Parameters.AddWithValue("@TrackingActiveType", TrackingActiveType);
+                    int affectrow = command.ExecuteNonQuery();
+                    if (affectrow > 0)
+                    {
+                        return Ok("successfully updated");
+                    }
+                    else { return BadRequest("not updated");
+                    }
+                }
+            }            
+
+        }
+
+        //manage tracking type help method
+        // check if child has a tracking method
+        public static bool isFollow(int childID, int userID)
+        {
+
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                conn.Open();
+                string sql = "SELECT FC.TrackByApp, FC.TrackByDevice FROM FollowChilds FC " +
+                             "INNER JOIN PersonChilds PC ON FC.ChildId = PC.ChildID " +
+                             "WHERE PC.ChildID = @ChildID AND PC.MainPersonInChargeID = @UserID";
+                using (SqlCommand command = new SqlCommand(sql, conn))
+                {
+                    command.Parameters.AddWithValue("@ChildID", childID);
+                    command.Parameters.AddWithValue("@UserID", userID);
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read() && reader.HasRows)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+
+            }
+
+        }
+
+        //insertHasCardMethod to insert 
+        public static bool insertHasCardMethod(int childID, int userID, bool app, bool device, string TrackingActiveType)
+        {
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                conn.Open();
+                string sql = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType, AllowToTrack) " +
+                             "VALUES (@PersonInChargeID, @ChildID, @app, @device, 1, @TrackingActiveType, 1)";
+
+                using (SqlCommand command = new SqlCommand(sql, conn))
+                {
+                    command.Parameters.AddWithValue("@ChildID", childID);
+                    command.Parameters.AddWithValue("@UserID", userID);
+                    command.Parameters.AddWithValue("@app", app);
+                    command.Parameters.AddWithValue("@device", device);
+                    command.Parameters.AddWithValue("@TrackingActiveType", TrackingActiveType);
+
+
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read() && reader.HasRows)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+
+            }
+        }
+
+        //insert or update AppMethod in link child         
+        public static bool insertorupdateAppMethod(int childID, int userID)
+        {
+            bool isfollow = isFollow(childID, userID);
+            if (isfollow)
+            {
+                using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+                {
+                    conn.Open();
+                    string sql = "UPDATE FollowChilds SET TrackByApp = @app, TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND userID =@MainPersonInChargeID ";
+                    using(SqlCommand command = new SqlCommand(sql,conn))
+                    {
+                        command.Parameters.AddWithValue("@ChildID", childID);
+                        command.Parameters.AddWithValue("@UserID", userID);
+                        command.Parameters.AddWithValue("@app", 1);
+                        command.Parameters.AddWithValue("@TrackingActiveType", "app");
+                        int affectrow = command.ExecuteNonQuery();
+                        if (affectrow > 0)
+                        {
+                            return true;
+                        }
+                        else { return false; }
+                    }
+
+
+                }
+
+            }
+            else
+            {
+                bool isinsert = insertHasCardMethod(childID, userID , true, false, "app");
+                if (isinsert)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+        }
+
     }
 }
+
+    

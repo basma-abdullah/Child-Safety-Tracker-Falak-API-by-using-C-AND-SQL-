@@ -115,7 +115,6 @@ namespace FalaKAPP.Controllers
 
 
         //add child APIs either by his phone or by his parent phone:
-
         [HttpPost("addParentChild")]
         // This web API will be called when we create a child with a card by his parent
         public ActionResult AddParentChild(IFormFile MainImagePath, [FromForm] string username, string UserType, string FullName, string Password, int PhoneNumber, string Gender, string Email, string usernameType,
@@ -178,7 +177,15 @@ namespace FalaKAPP.Controllers
 
                     if (child.Value != null)
                     {
-                        return Ok("Child created successfully");
+                        bool insertfollow = SettingController.insertHasCardMethod(useridforchild, MainPersonInChargeID , false ,false,"hascard");
+                        if (insertfollow)
+                        {
+                            return Ok("Child created successfully");
+                        }
+                        else
+                        {
+                            return BadRequest("Error: Child account not created");
+                        }
                     }
                     else
                     {
