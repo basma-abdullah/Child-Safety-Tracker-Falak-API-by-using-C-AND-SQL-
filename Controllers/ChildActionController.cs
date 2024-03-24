@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Dynamic;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+//using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static QRCodes.Controllers.QrCodeController;
 
 namespace FalaKAPP.Controllers
@@ -16,14 +16,14 @@ namespace FalaKAPP.Controllers
     public class ChildActionController : ControllerBase
     {
         //link child to thier parent 
-        [HttpPut]
+        [HttpPut ("LinkChildByApplication")]
         public IActionResult linkchild([FromForm] int parentuserid, [FromForm] int childid, [FromForm] string kinshipT, [FromForm]  int Boundry, [FromForm] string AdditionalInformation)
         {
             int affectedRows = 0;
 
             if (DatabaseSettings.isIdExists(parentuserid) && DatabaseSettings.isIdExists(childid))
             {
-                using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn.ConnectionString))
+                using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
                     string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @UserID, kinshipT = @KinshipT, Boundry = @Boundry, AdditionalInformation = @AdditionalInformation WHERE ChildID = @ChildID";
 
@@ -53,10 +53,10 @@ namespace FalaKAPP.Controllers
 
 
         //link by verification code will be invoked when user enter 4  digit code for link by application
-        [HttpGet]
+        [HttpGet("verify_verification_code")]
         public IActionResult verify_verification_code(int ChildID, int VerificationCode)
         {
-            using (var conn = DatabaseSettings.dbConn)
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
                 string sql = "SELECT * FROM PersonChilds WHERE ChildID = @ChildID AND VerificationCode = @VerificationCode";
@@ -82,7 +82,7 @@ namespace FalaKAPP.Controllers
         [HttpGet("ChildHome/{Username}")]
         public IActionResult Getchild(string Username)
         {
-            var conn = DatabaseSettings.dbConn;
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
 
@@ -97,7 +97,7 @@ namespace FalaKAPP.Controllers
                 var child = new
                 {
                     FullName = reader.GetString(reader.GetOrdinal("FullName")),
-                    MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"))
+                    MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath")) 
                 };
                 conn.Close();
                 return Ok(child);
@@ -114,7 +114,7 @@ namespace FalaKAPP.Controllers
         [HttpGet("ChildProfile/{childID}")]
         public IActionResult ChildProfile(string childID)
         {
-            var conn = DatabaseSettings.dbConn;
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
 
             conn.Open();
 
@@ -171,7 +171,7 @@ namespace FalaKAPP.Controllers
                 }
             }
 
-
+   
         }
 
 

@@ -19,7 +19,7 @@ namespace QRCodes.Controllers
         public QrCodeController()
         {
             // Initialize the connection string
-            connectionString = "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\Admin\\OneDrive\\المستندات\\FalakDB.mdf;Integrated Security=True;Connect Timeout=30";
+            connectionString = "Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename=C:\\Users\\Admin\\OneDrive\\FalakDB.mdf;Integrated Security=True;Connect Timeout=30";
         }
 
         //this will generate qrcode information to use in child card
@@ -92,11 +92,9 @@ namespace QRCodes.Controllers
             using (SqlConnection connection = new SqlConnection(connectionString))
             {
                 connection.Open();
-
-                string query = $"SELECT p.FullName, c.YearOfBirth, p.Gender, c.AdditionalInformation " +
-                               $"FROM PersonUsers P , PersonChilds c " +
-                               $"WHERE c.childID = @childId AND c.MainPersonInChargeID = @userId";
-
+                string query = $"SELECT cn.FullName, c.YearOfBirth, cn.Gender, c.AdditionalInformation " +
+                               $"FROM PersonUsers p, PersonUsers cn, PersonChilds c " +
+                               $"WHERE c.ChildID = cn.UserID AND c.ChildID = @childId AND c.MainPersonInChargeID = @userId AND p.userid = c.MainPersonInChargeID";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@childId", childId);

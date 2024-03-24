@@ -12,7 +12,7 @@ namespace FalaKAPP.Controllers
         [HttpPost("tracking_children")]
         public IActionResult GetTrackingDetailsForChildren([FromBody] List<int> childIDs)
         {
-            var conn = DatabaseSettings.dbConn;
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
             List<object> results = new List<object>();
@@ -64,7 +64,7 @@ namespace FalaKAPP.Controllers
         [HttpGet("tracking_child/{userID}/{childID}")]
         public IActionResult GetTrackingDetails(int userID, int childID)
         {
-            var conn = DatabaseSettings.dbConn;
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
    
                 string sql = @"
@@ -109,7 +109,7 @@ namespace FalaKAPP.Controllers
         [HttpGet("trackinghistory/{userID}/{childID}")]
         public IActionResult GetTrackingHistory(int userID, int childID)
         {
-            var conn = DatabaseSettings.dbConn;
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
             string sql = @"
