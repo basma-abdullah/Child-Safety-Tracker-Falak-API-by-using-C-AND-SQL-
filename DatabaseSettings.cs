@@ -95,20 +95,21 @@ namespace FalaKAPP
             }
         }
 
-
-        internal static ActionResult<PersonUsers> GetByID(int UserID)
+        internal static ActionResult<PersonUsers?> GetByID(int UserID)
         {
             using (SqlConnection conn = new SqlConnection(dbConn))
             {
-                string sql = "SELECT * FROM PersonUsers WHERE UserID = @UserID ";
+                conn.Open(); // Open the database connection
+
+                string sql = "SELECT * FROM PersonUsers WHERE UserID = @UserID";
                 SqlCommand command = new SqlCommand(sql, conn);
                 command.Parameters.AddWithValue("@UserID", UserID);
 
                 SqlDataReader reader = command.ExecuteReader();
-                PersonUsers user = new PersonUsers();
-                if (reader.HasRows)
+                PersonUsers? user = null;
+
+                if (reader.Read())
                 {
-                    reader.Read();
                     user = new PersonUsers
                     {
                         UserID = reader.GetInt32(reader.GetOrdinal("UserID")),
@@ -121,17 +122,17 @@ namespace FalaKAPP
                         Email = reader.GetString(reader.GetOrdinal("Email")),
                         UsernameType = reader.GetString(reader.GetOrdinal("UsernameType")),
                     };
-
-                    reader.Close();
-
                 }
+
+                reader.Close();
+
                 if (user != null)
                 {
                     return new OkObjectResult(user);
                 }
                 else
                 {
-                    return new StatusCodeResult(404);
+                    return new NotFoundResult(); // Return appropriate result when no user is found
                 }
             }
         }

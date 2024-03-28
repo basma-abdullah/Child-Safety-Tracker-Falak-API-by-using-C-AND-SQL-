@@ -243,16 +243,16 @@ namespace FalaKAPP.Controllers
             return trackingOption;
         }
 
-        [HttpPut("updateDefualtTrackingMethod/{UserID,childID,TrackingActiveType}")]
+        [HttpPut("updateDefualtTrackingMethod")]
         public IActionResult updateDefualtTrackingMethod(int UserID , int ChildID , string TrackingActiveType)
         {
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "UPDATE FollowChilds SET TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND userID =@MainPersonInChargeID ";
+                string sql = "UPDATE FollowChilds SET TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND PersonInChargeID =@MainPersonInChargeID ";
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
-                    command.Parameters.AddWithValue("@UserID", UserID);
+                    command.Parameters.AddWithValue("@PersonInChargeID", UserID);
                     command.Parameters.AddWithValue("@ChildID", ChildID);
                     command.Parameters.AddWithValue("@TrackingActiveType", TrackingActiveType);
                     int affectrow = command.ExecuteNonQuery();
