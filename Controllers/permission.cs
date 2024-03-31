@@ -11,88 +11,111 @@ namespace FalaKAPP.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class permission : ControllerBase
+    public class Permission : ControllerBase
     {
 
-        //To retrieve a list of MY children who have given permission and accepted 
-        [HttpGet("givenacceptedpermission/personInChargeID")]
-        public ActionResult<object> givenacceptedpermission(int personInChargeID)
+        //To retrieve a list of MY children who have given permission and accepted البرمشن الى اشوف فيه اطفالي الى معطية مراقبتهم لشخص
+        [HttpGet("givenacceptedpermission/{personInChargeID}")]
+        public ActionResult<IEnumerable<object>> GivenAcceptedPermission(int personInChargeID)
         {
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                List<object> Acceptedpermission = new List<object>();
-                string sql = "select * from permissionToFollow where PersonInChargeID = @PersonInChargeID AND PermissionActivationStatus = 'enable'";
+                List<object> acceptedPermissions = new List<object>();
+                string sql = "SELECT * FROM permissionToFollow WHERE PersonInChargeID = @PersonInChargeID AND PermissionActivationStatus = 'enable'";
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
-                    command.Parameters.AddWithValue("@personInChargeID", personInChargeID);
+                    command.Parameters.AddWithValue("@PersonInChargeID", personInChargeID);
                     SqlDataReader reader = command.ExecuteReader();
-                    reader.Read();
+
                     if (reader.HasRows)
                     {
                         while (reader.Read())
                         {
                             int permissionPersonID = reader.GetInt32(reader.GetOrdinal("permissionPersonID"));
-
                             string kinshipT = reader.GetString(reader.GetOrdinal("kinshipT"));
                             int childID = reader.GetInt32(reader.GetOrdinal("ChildID"));
-                            PersonUsers permissionPersonData = DatabaseSettings.GetByID(permissionPersonID).Value;
-                            string permmisionpersonfullname = permissionPersonData.FullName;
-                            int permmisionpersonnumber = permissionPersonData.PhoneNumber;
-                            PersonUsers childData = DatabaseSettings.GetByID(childID).Value;
-                            string ChildFullName = permissionPersonData.FullName;
-                            //string permmisionpersonfullname = GetFullName(permissionPersonID);
-                            //string ChildFullName = GetFullName(childID);
-                            var Acceptedpermissiondetail = new { ChildFullName, permmisionpersonfullname, kinshipT, permmisionpersonnumber };
-                            Acceptedpermission.Add(Acceptedpermissiondetail);
+
+                            ActionResult<PersonUsers?> result = DatabaseSettings.GetByID(permissionPersonID);
+                            if (result.Result is OkObjectResult okResult && okResult.Value is PersonUsers user)
+                            {
+                                string fullName = user.FullName;
+                                int phoneNumber = user.PhoneNumber;
+
+                                string permissionPersonFullName = GetFullName(permissionPersonID);
+                                string childFullName = GetFullName(childID);
+
+                                var acceptedPermissionDetail = new
+                                {
+                                    ChildFullName = childFullName,
+                                    PermissionPersonFullName = permissionPersonFullName,
+                                    KinshipT = kinshipT,
+                                    PhoneNumber = phoneNumber
+                                };
+
+                                acceptedPermissions.Add(acceptedPermissionDetail);
+                            }
                         }
+
                         conn.Close();
+                        return Ok(acceptedPermissions);
                     }
+
+                    return NotFound("No permissions given");
                 }
-
-                return Ok(Acceptedpermission);
             }
-
         }
 
-        //To retrieve a list of OTHER children whe i have permission to follow
-        [HttpGet("recivedPermission/PermissionPersonID")]
-        public ActionResult<object> recivedacceptedPermission(int PermissionPersonID)
+        //To retrieve a list of OTHER children whe i have permission to follow اشوف أطفال غيري الى اراقبهم
+        [HttpGet("recivedPermission/{PermissionPersonID}")]
+        public ActionResult<IEnumerable<object>> RecivedAcceptedPermission(int PermissionPersonID)
         {
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                List<object> Acceptedpermission = new List<object>();
-                string sql = "select * from permissionToFollow where PermissionPersonID = @PermissionPersonID AND PermissionActivationStatus = 'enable'";
+                List<object> acceptedPermissions = new List<object>();
+                string sql = "SELECT * FROM permissionToFollow WHERE PermissionPersonID = @PermissionPersonID AND PermissionActivationStatus = 'enable'";
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
                     command.Parameters.AddWithValue("@PermissionPersonID", PermissionPersonID);
                     SqlDataReader reader = command.ExecuteReader();
 
-                    if (reader.Read())
+                    if (reader.HasRows)
                     {
-                        do
+                        while (reader.Read())
                         {
                             int personInChargeID = reader.GetInt32(reader.GetOrdinal("personInChargeID"));
                             string kinshipT = reader.GetString(reader.GetOrdinal("kinshipT"));
                             int childID = reader.GetInt32(reader.GetOrdinal("ChildID"));
-                            PersonUsers permissionPersonData = DatabaseSettings.GetByID(personInChargeID).Value;
-                            string permmisionpersonfullname = permissionPersonData.FullName;
-                            int permmisionpersonnumber = permissionPersonData.PhoneNumber;
-                            PersonUsers childData = DatabaseSettings.GetByID(childID).Value;
-                            string ChildFullName = permissionPersonData.FullName;
-                            var Acceptedpermissiondetail = new { ChildFullName, permmisionpersonfullname, kinshipT, permmisionpersonnumber };
-                            Acceptedpermission.Add(Acceptedpermissiondetail);
+
+                            ActionResult<PersonUsers?> result = DatabaseSettings.GetByID(personInChargeID);
+                            if (result.Result is OkObjectResult okResult && okResult.Value is PersonUsers user)
+                            {
+                                string fullName = user.FullName;
+                                int phoneNumber = user.PhoneNumber;
+
+                                string permissionPersonFullName = GetFullName(personInChargeID);
+                                string childFullName = GetFullName(childID);
+
+                                var acceptedPermissionDetail = new
+                                {
+                                    ChildFullName = childFullName,
+                                    PermissionPersonFullName = permissionPersonFullName,
+                                    KinshipT = kinshipT,
+                                    PhoneNumber = phoneNumber
+                                };
+
+                                acceptedPermissions.Add(acceptedPermissionDetail);
+                            }
                         }
-                        while (reader.Read());
+                        conn.Close();
+                        return Ok(acceptedPermissions);
                     }
-                    conn.Close();
+
+                    return NotFound("No permissions provided");
                 }
-                
 
-                return Ok(Acceptedpermission);
             }
-
         }
 
 
@@ -140,7 +163,7 @@ namespace FalaKAPP.Controllers
 
 
 
-        //To review the new permissions sent to the user
+        //To review the new permissions sent to the user رؤية الاذونات الواصلة
         [HttpGet("Getmynewpermission/{PermissionPersonID}")]
         public IActionResult Getmynewpermission(int PermissionPersonID)
         {
@@ -171,7 +194,7 @@ namespace FalaKAPP.Controllers
                                     string fullname = user.FullName;
                                     int phoneNumber = user.PhoneNumber;
 
-                                    string permissionPersonFullName = GetFullName(PermissionPersonID);
+                                    string permissionPersonFullName = GetFullName(personInChargeID);
                                     string childFullName = GetFullName(childID);
                                     var acceptedPermissionDetail = new { ChildFullName = childFullName, PermissionPersonFullName = permissionPersonFullName, kinshipT, PhoneNumber = phoneNumber };
                                     Acceptedpermission.Add(acceptedPermissionDetail);
@@ -186,7 +209,7 @@ namespace FalaKAPP.Controllers
         }
 
 
-        //To retrieve a list of THE permission statues THAT i have SEND 
+        //To retrieve a list of THE permission statues THAT i have SEND اشوف حالات الاذونات الى ارسلتها 
 
 
         [HttpGet("Getpermissionstatues/{personInChargeID}")]
@@ -252,10 +275,10 @@ namespace FalaKAPP.Controllers
             return string.Empty;
         }
 
+        // الرد على اذن
 
-
-        [HttpPut]
-        public IActionResult acceptedorRejectPermission( int permmitionpersonID, int mainpersoninchargeid, int ChildID, string PermissionActivationStatus)
+        [HttpPut("ReplyToPermission")]
+        public IActionResult acceptedorRejectPermission(int permmitionpersonID, int mainpersoninchargeid, int ChildID, string PermissionActivationStatus)
         {
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
@@ -266,13 +289,13 @@ namespace FalaKAPP.Controllers
                     command.Parameters.AddWithValue("@permmitionpersonID", permmitionpersonID);
                     command.Parameters.AddWithValue("@mainpersoninchargeid", mainpersoninchargeid);
                     command.Parameters.AddWithValue("@ChildID", ChildID);
-                    command.Parameters.AddWithValue("@PermissionActivationStatus", PermissionActivationStatus); 
+                    command.Parameters.AddWithValue("@PermissionActivationStatus", PermissionActivationStatus);
                     int affectrow = command.ExecuteNonQuery();
                     if (affectrow > 0)
                     {
-                        if(PermissionActivationStatus == "enable")
+                        if (PermissionActivationStatus == "enable")
                         {
-                            bool addtofollowchild = insertToFollowChild(permmitionpersonID , mainpersoninchargeid , ChildID);
+                            bool addtofollowchild = InsertToFollowChild(permmitionpersonID, mainpersoninchargeid, ChildID);
                             if (addtofollowchild)
                             {
                                 return Ok("succefully updated");
@@ -292,24 +315,39 @@ namespace FalaKAPP.Controllers
         }
 
 
-
-        public static bool insertToFollowChild(int permmitionperson , int mainpersoninchargeid, int ChildID)
+        public static bool InsertToFollowChild(int permissionPerson, int mainPersonInChargeID, int childID)
         {
-            FollowChilds followChilds = ToGetFollowChildInfo(mainpersoninchargeid, ChildID);
+            FollowChilds followChilds = ToGetFollowChildInfo(mainPersonInChargeID, childID);
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType, AllowToTrack) " +
-                             "VALUES (@PersonInChargeID, @ChildID, @app, @device, 1, @TrackingActiveType, 1)";
-                using (SqlCommand command = new SqlCommand(sql, conn))
+
+                // التحقق مما إذا كانت الصف متواجدة بالفعل في الجدول
+                string checkExistingQuery = "SELECT COUNT(*) FROM FollowChilds WHERE PersonInChargeID = @PersonInChargeID AND ChildID = @ChildID";
+                using (SqlCommand checkExistingCommand = new SqlCommand(checkExistingQuery, conn))
                 {
-                    command.Parameters.AddWithValue("@ChildID", ChildID);
-                    command.Parameters.AddWithValue("@PersonInChargeID", permmitionperson);
-                    command.Parameters.AddWithValue("@app", followChilds.TrackByApp);
-                    command.Parameters.AddWithValue("@device", followChilds.TrackByDevice);
-                    command.Parameters.AddWithValue("@TrackingActiveType", followChilds.TrackingActiveType);
-                    int affectedrow = command.ExecuteNonQuery();
-                    if (affectedrow>0)
+                    checkExistingCommand.Parameters.AddWithValue("@PersonInChargeID", permissionPerson);
+                    checkExistingCommand.Parameters.AddWithValue("@ChildID", childID);
+                    int existingRowsCount = (int)checkExistingCommand.ExecuteScalar();
+                    if (existingRowsCount > 0)
+                    {
+
+                        return false;
+                    }
+                }
+
+                // إذا وصلنا إلى هذه النقطة، يعني أن الصف غير موجود، ويمكننا إضافته
+                string insertQuery = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType, AllowTorack) " +
+                                     "VALUES (@PersonInChargeID, @ChildID, @app, @device, 1, @TrackingActiveType, 1)";
+                using (SqlCommand insertCommand = new SqlCommand(insertQuery, conn))
+                {
+                    insertCommand.Parameters.AddWithValue("@ChildID", childID);
+                    insertCommand.Parameters.AddWithValue("@PersonInChargeID", permissionPerson);
+                    insertCommand.Parameters.AddWithValue("@app", followChilds.TrackByApp);
+                    insertCommand.Parameters.AddWithValue("@device", followChilds.TrackByDevice);
+                    insertCommand.Parameters.AddWithValue("@TrackingActiveType", followChilds.TrackingActiveType);
+                    int affectedRows = insertCommand.ExecuteNonQuery();
+                    if (affectedRows > 0)
                     {
                         return true;
                     }
@@ -356,56 +394,98 @@ namespace FalaKAPP.Controllers
 
 
 
+        // حذف الـ permission المرسل
+        [HttpDelete("DeleteReceivedPermission/{PermissionPersonID}/{PersonInChargeID}/{ChildID}")]
+        public IActionResult DeleteReceivedPermission(int PermissionPersonID, int PersonInChargeID, int ChildID)
+        {
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                conn.Open();
 
+                using (SqlTransaction transaction = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        string deleteFollowChildsSql = "DELETE FROM FollowChilds WHERE  ChildID = @ChildID AND  PersonInChargeID = (SELECT permissionPersonID from permissionToFollow where permissionPersonID = @permissionPersonID and ChildID = @ChildID AND PersonInChargeID =@PersonInChargeID)";
+                        using (SqlCommand deleteFollowChildsCommand = new SqlCommand(deleteFollowChildsSql, conn, transaction))
+                        {
+                            deleteFollowChildsCommand.Parameters.AddWithValue("@PermissionPersonID", PermissionPersonID);
+                            deleteFollowChildsCommand.Parameters.AddWithValue("@PersonInChargeID", PersonInChargeID);
+                            deleteFollowChildsCommand.Parameters.AddWithValue("@ChildID", ChildID);
 
+                            deleteFollowChildsCommand.ExecuteNonQuery();
+                        }
 
+                        string deleteReceivedPermissionSql = "DELETE FROM permissionToFollow WHERE PermissionPersonID = @PermissionPersonID AND PersonInChargeID = @PersonInChargeID AND ChildID = @ChildID AND PermissionActivationStatus = 'enable'";
+                        using (SqlCommand deleteReceivedPermissionCommand = new SqlCommand(deleteReceivedPermissionSql, conn, transaction))
+                        {
+                            deleteReceivedPermissionCommand.Parameters.AddWithValue("@PermissionPersonID", PermissionPersonID);
+                            deleteReceivedPermissionCommand.Parameters.AddWithValue("@PersonInChargeID", PersonInChargeID);
+                            deleteReceivedPermissionCommand.Parameters.AddWithValue("@ChildID", ChildID);
 
+                            int affectedRows = deleteReceivedPermissionCommand.ExecuteNonQuery();
 
-
-
-
-
-
-
-
-        //public static string GetFullName(int permmitionPersonID)
-        //{
-        //    using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
-        //    {
-        //        conn.Open();
-        //        string sql = "select * from PersonUsers where UserID = @UserID  '";
-        //        using (SqlCommand command = new SqlCommand(sql, conn))
-        //        {
-        //            command.Parameters.AddWithValue("@UserID", permmitionPersonID);
-        //            SqlDataReader reader = command.ExecuteReader();
-        //            reader.Read();
-        //            if (reader.HasRows)
-        //            {
-
-        //                string GetName = reader.GetString(reader.GetOrdinal("Fullname"));
-
-
-        //                reader.Close();
-        //                return GetName;
-        //            }
-
-        //        }
-
-        //    }
-        //    return "Not Found";
-        //}
-
-
+                            if (affectedRows > 0)
+                            {
+                                transaction.Commit();
+                                return Ok("The permission has been successfully deleted");
+                            }
+                            else
+                            {
+                                transaction.Rollback();
+                                return NotFound("Permission not found");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        transaction.Rollback();
+                        return BadRequest("An error occurred during the deletion operation: " + ex.Message);
+                    }
+                }
+            }
+        }
 
 
 
     }
-
-
 }
 
 
 
+
+
+
+
+
+
+
+//public static string GetFullName(int permmitionPersonID)
+//{
+//    using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+//    {
+//        conn.Open();
+//        string sql = "select * from PersonUsers where UserID = @UserID  '";
+//        using (SqlCommand command = new SqlCommand(sql, conn))
+//        {
+//            command.Parameters.AddWithValue("@UserID", permmitionPersonID);
+//            SqlDataReader reader = command.ExecuteReader();
+//            reader.Read();
+//            if (reader.HasRows)
+//            {
+
+//                string GetName = reader.GetString(reader.GetOrdinal("Fullname"));
+
+
+//                reader.Close();
+//                return GetName;
+//            }
+
+//        }
+
+//    }
+//    return "Not Found";
+//}
 
 
 

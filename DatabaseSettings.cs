@@ -136,5 +136,28 @@ namespace FalaKAPP
                 }
             }
         }
+
+
+        public static bool isMainPersonInChargeIDExists(int childid)
+        {
+            using (SqlConnection conn = new SqlConnection(dbConn))
+            {
+                string sql = "SELECT COUNT(*) FROM PersonChilds WHERE ChildID = @ChildID AND MainPersonInChargeID IS NOT NULL";
+                using (SqlCommand command = new SqlCommand(sql, conn))
+                {
+                    command.Parameters.AddWithValue("@ChildID", childid);
+                    conn.Open();
+                    int count = (int)command.ExecuteScalar();
+                    if(count > 0)
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
     }
 }

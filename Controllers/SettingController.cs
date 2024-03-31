@@ -160,11 +160,11 @@ namespace FalaKAPP.Controllers
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
-            string sql = "SELECT PC.ChildID, CN.FullName, FC.TrackingActiveType " +
-                         "FROM PersonChilds PC  " +
-                         "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID " +
-                         "JOIN PersonUsers CN ON PC.ChildID = CN.UserID " +
-                         "JOIN FollowChilds FC ON PC.ChildID = FC.ChildID " +
+            string sql = "SELECT PC.ChildID, CN.FullName, FC.TrackingActiveType"+
+                         "FROM PersonChilds PC"+
+                         "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID"+
+                         "JOIN PersonUsers CN ON PC.ChildID = CN.UserID"+
+                         "JOIN FollowChilds FC ON PC.ChildID = FC.ChildID"+
                          "WHERE PC.MainPersonInChargeID = @UserID";
 
             SqlCommand command = new SqlCommand(sql, conn);
@@ -271,19 +271,17 @@ namespace FalaKAPP.Controllers
         // check if child has a tracking method
         public static bool isFollow(int childID, int userID)
         {
-
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "SELECT FC.TrackByApp, FC.TrackByDevice FROM FollowChilds FC " +
-                             "INNER JOIN PersonChilds PC ON FC.ChildId = PC.ChildID " +
-                             "WHERE PC.ChildID = @ChildID AND PC.MainPersonInChargeID = @UserID";
+                string sql = "SELECT COUNT(*) FROM FollowChilds FC " +
+                             "WHERE FC.ChildID = @ChildID AND FC.PersonInChargeID = @UserID";
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
                     command.Parameters.AddWithValue("@ChildID", childID);
                     command.Parameters.AddWithValue("@UserID", userID);
-                    SqlDataReader reader = command.ExecuteReader();
-                    if (reader.Read() && reader.HasRows)
+                    int count = (int)command.ExecuteScalar();
+                    if (count > 0)
                     {
                         return true;
                     }
@@ -292,11 +290,42 @@ namespace FalaKAPP.Controllers
                         return false;
                     }
                 }
-
-
             }
-
         }
+
+
+
+        //public static bool isFollow(int childID, int userID)
+        //{
+
+        //    using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+        //    {
+        //        conn.Open();
+        //        string sql = "SELECT FC.TrackByApp, FC.TrackByDevice FROM FollowChilds FC " +
+        //                     "INNER JOIN PersonChilds PC ON FC.ChildId = PC.ChildID " +
+        //                     "WHERE PC.ChildID = @ChildID AND PC.MainPersonInChargeID = @UserID";
+        //        using (SqlCommand command = new SqlCommand(sql, conn))
+        //        {
+        //            command.Parameters.AddWithValue("@ChildID", childID);
+        //            command.Parameters.AddWithValue("@UserID", userID);
+        //            SqlDataReader reader = command.ExecuteReader();
+        //            if (reader.Read() && reader.HasRows)
+        //            {
+        //                return true;
+        //            }
+        //            else
+        //            {
+        //                return false;
+        //            }
+        //        }
+
+
+        //    }
+
+        //}
+
+
+
 
         //insertHasCardMethod to insert 
         public static bool insertHasCardMethod(int childID, int userID, bool app, bool device, string TrackingActiveType)
@@ -304,20 +333,20 @@ namespace FalaKAPP.Controllers
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType, AllowToTrack) " +
+                string sql = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType, AllowTorack) " +
                              "VALUES (@PersonInChargeID, @ChildID, @app, @device, 1, @TrackingActiveType, 1)";
 
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
                     command.Parameters.AddWithValue("@ChildID", childID);
-                    command.Parameters.AddWithValue("@UserID", userID);
+                    command.Parameters.AddWithValue("@PersonInChargeID", userID);
                     command.Parameters.AddWithValue("@app", app);
                     command.Parameters.AddWithValue("@device", device);
                     command.Parameters.AddWithValue("@TrackingActiveType", TrackingActiveType);
 
 
-                    SqlDataReader reader = command.ExecuteReader();
-                    if (reader.Read() && reader.HasRows)
+                    int reader = command.ExecuteNonQuery();
+                    if (reader > 0)
                     {
                         return true;
                     }
@@ -339,11 +368,11 @@ namespace FalaKAPP.Controllers
                 using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
                     conn.Open();
-                    string sql = "UPDATE FollowChilds SET TrackByApp = @app, TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND userID =@MainPersonInChargeID ";
+                    string sql = "UPDATE FollowChilds SET TrackByApp = @app, TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND PersonInChargeID =@MainPersonInChargeID ";
                     using(SqlCommand command = new SqlCommand(sql,conn))
                     {
                         command.Parameters.AddWithValue("@ChildID", childID);
-                        command.Parameters.AddWithValue("@UserID", userID);
+                        command.Parameters.AddWithValue("@MainPersonInChargeID", userID);
                         command.Parameters.AddWithValue("@app", 1);
                         command.Parameters.AddWithValue("@TrackingActiveType", "app");
                         int affectrow = command.ExecuteNonQuery();

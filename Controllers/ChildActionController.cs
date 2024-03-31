@@ -16,46 +16,62 @@ namespace FalaKAPP.Controllers
     public class ChildActionController : ControllerBase
     {
         //link child to thier parent 
-        [HttpPut ("LinkChildByApplication")]
-        public IActionResult linkchild([FromForm] int parentuserid, [FromForm] int childid, [FromForm] string kinshipT, [FromForm]  int Boundry, [FromForm] string AdditionalInformation)
+        [HttpPut("LinkChildByApplication")]
+        public IActionResult linkchild([FromForm] int parentuserid, [FromForm] int childid, [FromForm] string kinshipT, [FromForm] int Boundry, [FromForm] string AdditionalInformation)
         {
             int affectedRows = 0;
             bool insertfollowchild = false;
-            if (DatabaseSettings.isIdExists(parentuserid) && DatabaseSettings.isIdExists(childid))
-            {
-                using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
-                {
-                    string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @UserID, kinshipT = @KinshipT, Boundry = @Boundry, AdditionalInformation = @AdditionalInformation WHERE ChildID = @ChildID";
-                    ;
-                    using (SqlCommand command = new SqlCommand(sql, conn))
-                    {
-                        command.Parameters.AddWithValue("@UserID", parentuserid);
-                        command.Parameters.AddWithValue("@ChildID", childid);
-                        command.Parameters.AddWithValue("@KinshipT", kinshipT);
-                        command.Parameters.AddWithValue("@Boundry", Boundry);
-                        command.Parameters.AddWithValue("@AdditionalInformation", AdditionalInformation);
+            bool isMainPersonInChargeIDExists = DatabaseSettings.isMainPersonInChargeIDExists(childid);
 
-                        conn.Open();
-                        affectedRows = command.ExecuteNonQuery();
+            if (!isMainPersonInChargeIDExists)
+            {
+                if (DatabaseSettings.isIdExists(parentuserid) && DatabaseSettings.isIdExists(childid))
+                {
+                    using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+                    {
+                        string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @UserID, kinshipT = @KinshipT, Boundry = @Boundry, AdditionalInformation = @AdditionalInformation WHERE ChildID = @ChildID";
+                        using (SqlCommand command = new SqlCommand(sql, conn))
+                        {
+                            command.Parameters.AddWithValue("@UserID", parentuserid);
+                            command.Parameters.AddWithValue("@ChildID", childid);
+                            command.Parameters.AddWithValue("@KinshipT", kinshipT);
+                            command.Parameters.AddWithValue("@Boundry", Boundry);
+                            command.Parameters.AddWithValue("@AdditionalInformation", AdditionalInformation);
+
+                            conn.Open();
+                            affectedRows = command.ExecuteNonQuery();
+                        }
+
+                        insertfollowchild = SettingController.insertorupdateAppMethod(childid, parentuserid);
                     }
-                     insertfollowchild = SettingController.insertorupdateAppMethod(childid, parentuserid);
-                    
                 }
+                if (affectedRows > 0 && insertfollowchild)
+                {
+                    return Ok("link success");
+                }
+                else
+                {
+
+                    return BadRequest("not linked");
+
+                }
+
+
+
             }
 
-            if (affectedRows > 0 && insertfollowchild)
+            else if (isMainPersonInChargeIDExists)
             {
-                // 
-                return Ok("link success");
+                return BadRequest("You cannot link the child. Try requesting tracking permission ");
             }
             else
             {
                 return BadRequest("not linked");
             }
+
         }
 
-
-        //link by verification code will be invoked when user enter 4  digit code for link by application
+                //link by verification code will be invoked when user enter 4  digit code for link by application
         [HttpGet("verify_verification_code")]
         public IActionResult verify_verification_code(int ChildID, int VerificationCode)
         {
@@ -82,40 +98,51 @@ namespace FalaKAPP.Controllers
         }
 
         //to get children information and display result in home list 
-        [HttpGet("ChildHome/{Username}")]
-        public IActionResult Getchild(string Username)
+        [HttpGet("ChildHome/{UserID}")]
+        public ActionResult<object> Getchild(int UserID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
 
-            string sql = "SELECT PC.ChildID, PC.MainImagePath, PU.FullName FROM PersonChilds PC JOIN PersonUsers PU ON PC.ChildID = PU.UserID WHERE PC.ChildID = ChildID";
+            string sql = "SELECT PC.ChildID, CN.FullName, PC.MainImagePath "+
+                         "FROM PersonChilds PC "+
+                         "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID "+
+                         "JOIN PersonUsers CN ON PC.ChildID = CN.UserID "+
+                         "WHERE PC.MainPersonInChargeID = @UserID";
+
             SqlCommand Comm = new SqlCommand(sql, conn);
-            Comm.Parameters.AddWithValue("@Username", Username);
+            Comm.Parameters.AddWithValue("@UserID", UserID);
 
             SqlDataReader reader = Comm.ExecuteReader();
 
-            if (reader.Read())
+            List<object> childsprofile = new List<object>();
+            while (reader.Read())
             {
                 var child = new
                 {
                     FullName = reader.GetString(reader.GetOrdinal("FullName")),
-                    MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath")) 
+                    MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"))
                 };
-                conn.Close();
-                return Ok(child);
+
+                childsprofile.Add(child);
             }
+
             conn.Close();
+
+            if (childsprofile.Count > 0)
+            {
+                return Ok(childsprofile);
+            }
+
             return NotFound("Link your children");
-
-
         }
 
 
 
         //to get more deteail information when click on specific child 
         [HttpGet("ChildProfile/{childID}")]
-        public IActionResult ChildProfile(string childID)
+        public ActionResult<object> ChildProfile(string childID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
 
@@ -126,7 +153,7 @@ namespace FalaKAPP.Controllers
                     PC.YearOfBirth AS YearOfBirth,
                     PC.MainImagePath AS MainImagePath,
                     PU.PhoneNumber AS PhoneNumber,
-                    PC.QRCode AS QRCode,
+                    PC.QRCodeInfo AS QRCode,
                     PC.Boundry AS Boundary,
                     D.DeviceBattery AS DeviceBattery,
                     FC.TrackingActiveType AS TrackingActiveType,
@@ -148,11 +175,12 @@ namespace FalaKAPP.Controllers
                 {
                     if (reader.Read())
                     {
-                        var childProfile = new
+
+                        var childProfile = new 
                         {
                             MainImagePath = reader.IsDBNull(reader.GetOrdinal("MainImagePath")) ? null : reader.GetString(reader.GetOrdinal("MainImagePath")),
                             FullName = reader.IsDBNull(reader.GetOrdinal("FullName")) ? null : reader.GetString(reader.GetOrdinal("FullName")),
-                            YearOfBirth = reader.IsDBNull(reader.GetOrdinal("YearOfBirth")) ? default(DateTime) : reader.GetDateTime(reader.GetOrdinal("YearOfBirth")),
+                            YearOfBirth = reader.IsDBNull(reader.GetOrdinal("YearOfBirth")) ?  default(int) : reader.GetInt32(reader.GetOrdinal("YearOfBirth")),
                             TrackingActiveType = reader.IsDBNull(reader.GetOrdinal("TrackingActiveType")) ? null : reader.GetString(reader.GetOrdinal("TrackingActiveType")),
                             DeviceBattery = reader.IsDBNull(reader.GetOrdinal("DeviceBattery")) ? default(int) : reader.GetInt32(reader.GetOrdinal("DeviceBattery")),
                             PhoneNumber = reader.IsDBNull(reader.GetOrdinal("PhoneNumber")) ? default(int) : reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
