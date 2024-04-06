@@ -47,7 +47,7 @@ namespace FalaKAPP.Controllers
                             UserType = reader.GetString(reader.GetOrdinal("UserType")),
                             FullName = reader.GetString(reader.GetOrdinal("FullName")),
                             Password = reader.GetString(reader.GetOrdinal("Password")),
-                            PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
+                            //PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
                             Gender = reader.GetString(reader.GetOrdinal("Gender")),
                             Email = reader.GetString(reader.GetOrdinal("Email")),
                             UsernameType = reader.GetString(reader.GetOrdinal("UsernameType")),
@@ -66,11 +66,11 @@ namespace FalaKAPP.Controllers
 
         //sign UP for parent 
         [HttpPost("signup")]
-        public ActionResult<PersonUsers> signup([FromBody] PersonUsers user)
+        public ActionResult<PersonUsers> signup([FromBody] PersonUsers useruser)
         {
 
-            bool isExist = DatabaseSettings.isExists(user.Username);
-            if (!isExist)
+            bool isExist = DatabaseSettings.isExists(useruser.Username);
+            if (isExist == false)
             {
                 using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
@@ -78,26 +78,27 @@ namespace FalaKAPP.Controllers
                     string sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType, @Latitude, @Longitude)";
                     SqlCommand comm = new SqlCommand(sqlAdd, conn);
 
-                    comm.Parameters.AddWithValue("@Username", user.Username);
-                    comm.Parameters.AddWithValue("@UserType", user.UserType.ToLower());
-                    comm.Parameters.AddWithValue("@FullName", user.FullName);
-                    comm.Parameters.AddWithValue("@Password", user.Password);
-                    comm.Parameters.AddWithValue("@PhoneNumber", user.PhoneNumber);
-                    comm.Parameters.AddWithValue("@Gender", user.Gender);
-                    comm.Parameters.AddWithValue("@Email", user.Email);
-                    comm.Parameters.AddWithValue("@UsernameType", user.UsernameType.ToLower());
-                    comm.Parameters.AddWithValue("@Latitude", user.Latitude);
-                    comm.Parameters.AddWithValue("@Longitude", user.Longitude);
+                    comm.Parameters.AddWithValue("@Username", useruser.Username);
+                    comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
+                    comm.Parameters.AddWithValue("@FullName", useruser.FullName);
+                    comm.Parameters.AddWithValue("@Password", useruser.Password);
+                    comm.Parameters.AddWithValue("@PhoneNumber", useruser.PhoneNumber);
+                    //comm.Parameters.AddWithValue("@PhoneNumber", Convert.ToInt32(useruser.PhoneNumber));
+                    comm.Parameters.AddWithValue("@Gender", useruser.Gender);
+                    comm.Parameters.AddWithValue("@Email", useruser.Email);
+                    comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
+                    comm.Parameters.AddWithValue("@Latitude", useruser.Latitude);
+                    comm.Parameters.AddWithValue("@Longitude", useruser.Longitude);
 
                     int affectedRows = comm.ExecuteNonQuery();
 
                     if (affectedRows > 0)
                     {
-                        int userId = DatabaseSettings.getID(user.Username);
+                        int userId = DatabaseSettings.getID(useruser.Username);
                         if (userId > 0)
                         {
-                            user.UserID = userId;
-                            return CreatedAtAction("GetByID", new { UserID = user.UserID }, user);
+                            useruser.UserID = userId;
+                            return Ok(useruser);
                         }
                         else
                         {
@@ -106,8 +107,10 @@ namespace FalaKAPP.Controllers
                     }
                 }
             }
-
+             
             return BadRequest("This user already exists. Please try another username.");
+            
+
         }
 
 
@@ -203,7 +206,6 @@ namespace FalaKAPP.Controllers
 
 
         // Add the child 
-
         public static ActionResult<PersonChilds> AddChild(PersonChilds child)
         {
 
@@ -231,7 +233,7 @@ namespace FalaKAPP.Controllers
 
 
         [HttpPost("createChildAccount")]  //this web API WILL BE called when we create childe with card by his phone
-        public ActionResult CreateChildAccount(IFormFile MainImagePath, [FromForm] string username, string UserType, string FullName, string Password, int PhoneNumber, string Gender, string Email, string usernameType, int YearOfbirth)
+        public ActionResult CreateChildAccount(IFormFile MainImagePath , [FromForm] string username, string UserType, string FullName, string Password, int PhoneNumber, string Gender, string Email, string usernameType, int YearOfbirth)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             if (conn.State != ConnectionState.Open)
@@ -290,7 +292,7 @@ namespace FalaKAPP.Controllers
 
                     };
                     // Add the child to personchild
-                    ActionResult<PersonChilds> child = AddChild(childTemp);
+                    ActionResult<PersonChilds> child = AddChildacc(childTemp);
 
                     if (child != null)
                     {
@@ -309,6 +311,32 @@ namespace FalaKAPP.Controllers
             return BadRequest("Error: Invalid image or model state");
         }
 
+        public static ActionResult<PersonChilds> AddChildacc(PersonChilds child)
+        {
+
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
+            if (conn.State != ConnectionState.Open)
+            {
+                conn.Open();
+            }
+            string sql = "insert into PersonChilds(ChildID , YearOfbirth, mainImagePath,VerificationCode , QRCodeLink)values ('" + child.ChildID + "', '" + child.YearOfBirth + "', '" + child.MainImagePath + "', '" + child.VerificationCode + "', '" + child.QRCodeLink  + "')";
+            SqlCommand cmd = new SqlCommand(sql, conn);
+            int affectedrow = cmd.ExecuteNonQuery();
+            if (affectedrow > 0)
+            {
+                conn.Close();
+                return child;
+            }
+            else
+            {
+                conn.Close();
+                return null;
+
+            }
+
+        }
+
+
         //generate random verification code which represent url to object https://localhost:7111/api/child/22,22222
         public static int GetRandomNumber()
         {
@@ -321,13 +349,6 @@ namespace FalaKAPP.Controllers
 
 
     
-
-
-
-
-
-
-
 
 
 

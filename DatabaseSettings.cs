@@ -30,9 +30,15 @@ namespace FalaKAPP
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        bool exists = reader.Read();
-                        conn.Close();
-                        return exists;
+                        if (reader.Read()) {
+                            bool exists = true;
+                            return exists;
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                        
                     }
                 }
             }
