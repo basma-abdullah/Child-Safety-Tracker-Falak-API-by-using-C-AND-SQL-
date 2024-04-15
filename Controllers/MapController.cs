@@ -9,7 +9,7 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class MapController : ControllerBase
     {
-        [HttpPost("tracking_children")]
+        [HttpGet("tracking_children")]
         public IActionResult GetTrackingDetailsForChildren([FromBody] List<int> childIDs)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);

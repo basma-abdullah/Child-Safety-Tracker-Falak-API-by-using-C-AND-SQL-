@@ -151,7 +151,9 @@ namespace FalaKAPP.Controllers
             string sql = @"SELECT
                     PU.FullName AS FullName,
                     PC.YearOfBirth AS YearOfBirth,
-                    PC.MainImagePath AS MainImagePath,
+                    PC.MainIm
+
+Path AS MainImagePath,
                     PU.PhoneNumber AS PhoneNumber,
                     PC.QRCodeInfo AS QRCode,
                     PC.Boundry AS Boundary,

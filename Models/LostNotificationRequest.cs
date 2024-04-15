@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Humanizer;
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 namespace FalaKAPP.Models
 {
@@ -6,7 +7,9 @@ namespace FalaKAPP.Models
     {
 
             [JsonIgnore]
-            [Required] public int LostNotificationRequestID { get; set; }
+            public int LostNotificationRequestID { get; set; }
+            [Required]public string requestTitle {  get; set; }
+            [Required]public int mainPersonInChargeID { get; set; }
             [Required] public int TrackingChildMasterID { get; set; }
             [Required] public DateTime RequestLostNotificationDate { get; set; }
             public int LastLocationId { get; set; }
