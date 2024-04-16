@@ -43,7 +43,7 @@ namespace FalaKAPP.Controllers
             }       
         }
         //to return child information when click on specific child from list 
-        [HttpGet]
+        [HttpGet ("GetChildInformationForRequest")]
         public ChildInformation GetChildInformationForRequest(int childId, int userId)
         {
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
@@ -97,8 +97,8 @@ namespace FalaKAPP.Controllers
 
 
         //to get children IDs and display result in request add list 
-        [HttpGet("api/{UserID}")]
-        public ActionResult<object> Getchild(int UserID)
+        [HttpGet("GetchildsID/{UserID}")]
+        public ActionResult<object> GetchildsID(int UserID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
