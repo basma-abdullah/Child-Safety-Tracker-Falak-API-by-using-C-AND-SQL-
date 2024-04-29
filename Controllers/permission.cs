@@ -40,7 +40,7 @@ namespace FalaKAPP.Controllers
                             if (result.Result is OkObjectResult okResult && okResult.Value is PersonUsers user)
                             {
                                 string fullName = user.FullName;
-                                int phoneNumber = user.PhoneNumber;
+                                int? phoneNumber = user.PhoneNumber;
 
                                 string permissionPersonFullName = GetFullName(permissionPersonID);
                                 string childFullName = GetFullName(childID);
@@ -92,7 +92,7 @@ namespace FalaKAPP.Controllers
                             if (result.Result is OkObjectResult okResult && okResult.Value is PersonUsers user)
                             {
                                 string fullName = user.FullName;
-                                int phoneNumber = user.PhoneNumber;
+                                int? phoneNumber = user.PhoneNumber;
 
                                 string permissionPersonFullName = GetFullName(personInChargeID);
                                 string childFullName = GetFullName(childID);
@@ -192,7 +192,7 @@ namespace FalaKAPP.Controllers
                                 if (user != null)
                                 {
                                     string fullname = user.FullName;
-                                    int phoneNumber = user.PhoneNumber;
+                                    int? phoneNumber = user.PhoneNumber;
 
                                     string permissionPersonFullName = GetFullName(personInChargeID);
                                     string childFullName = GetFullName(childID);
@@ -239,7 +239,7 @@ namespace FalaKAPP.Controllers
                                 if (user != null)
                                 {
                                     string fullname = user.FullName;
-                                    int phoneNumber = user.PhoneNumber;
+                                    int? phoneNumber = user.PhoneNumber;
 
                                     string permissionPersonFullName = GetFullName(PermittionPersonID);
                                     string childFullName = GetFullName(childID);

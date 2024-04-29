@@ -10,6 +10,7 @@ using System.Xml.Linq;
 using QRCodes.Controllers;
 using static QRCoder.PayloadGenerator;
 using System.Data;
+using Microsoft.AspNetCore.Http.HttpResults;
 
 
 
@@ -47,16 +48,16 @@ namespace FalaKAPP.Controllers
                             UserType = reader.GetString(reader.GetOrdinal("UserType")),
                             FullName = reader.GetString(reader.GetOrdinal("FullName")),
                             Password = reader.GetString(reader.GetOrdinal("Password")),
-                            //PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
+                            PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
                             Gender = reader.GetString(reader.GetOrdinal("Gender")),
                             Email = reader.GetString(reader.GetOrdinal("Email")),
                             UsernameType = reader.GetString(reader.GetOrdinal("UsernameType")),
+                            Latitude = (float)reader.GetDouble(reader.GetOrdinal("Latitude")),
+                            Longitude = (float)reader.GetDouble(reader.GetOrdinal("Longitude"))
                         };
-
                         reader.Close();
                         return Ok(user);
                     }
-
                     reader.Close();
                 }
 
@@ -64,33 +65,58 @@ namespace FalaKAPP.Controllers
             }
         }
 
+
+
+
         //sign UP for parent 
         [HttpPost("signup")]
         public ActionResult<PersonUsers> signup([FromBody] PersonUsers useruser)
         {
-
+            int affectedRows;
+            string sqlAdd;
+            SqlCommand comm;
             bool isExist = DatabaseSettings.isExists(useruser.Username);
             if (isExist == false)
             {
                 using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
                     conn.Open();
-                    string sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType, @Latitude, @Longitude)";
-                    SqlCommand comm = new SqlCommand(sqlAdd, conn);
+                    if (useruser.UserType == "parent") {
+                         sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType, @Latitude, @Longitude)";
+                         comm = new SqlCommand(sqlAdd, conn);
 
-                    comm.Parameters.AddWithValue("@Username", useruser.Username);
-                    comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
-                    comm.Parameters.AddWithValue("@FullName", useruser.FullName);
-                    comm.Parameters.AddWithValue("@Password", useruser.Password);
-                    comm.Parameters.AddWithValue("@PhoneNumber", useruser.PhoneNumber);
-                    //comm.Parameters.AddWithValue("@PhoneNumber", Convert.ToInt32(useruser.PhoneNumber));
-                    comm.Parameters.AddWithValue("@Gender", useruser.Gender);
-                    comm.Parameters.AddWithValue("@Email", useruser.Email);
-                    comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
-                    comm.Parameters.AddWithValue("@Latitude", useruser.Latitude);
-                    comm.Parameters.AddWithValue("@Longitude", useruser.Longitude);
+                        comm.Parameters.AddWithValue("@Username", useruser.Username);
+                        comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
+                        comm.Parameters.AddWithValue("@FullName", useruser.FullName);
+                        comm.Parameters.AddWithValue("@Password", useruser.Password);
+                        comm.Parameters.AddWithValue("@PhoneNumber", useruser.PhoneNumber);
+                        comm.Parameters.AddWithValue("@Gender", useruser.Gender);
+                        comm.Parameters.AddWithValue("@Email", useruser.Email);
+                        comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
+                        comm.Parameters.AddWithValue("@Latitude", useruser.Latitude);
+                        comm.Parameters.AddWithValue("@Longitude", useruser.Longitude);
+                        affectedRows = comm.ExecuteNonQuery();
+                    }
+                    else
+                    {
+                        sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password,  Gender, Email, UsernameType) VALUES (@Username, @UserType, @FullName, @Password, @Gender, @Email, @UsernameType)";
+                         comm = new SqlCommand(sqlAdd, conn);
 
-                    int affectedRows = comm.ExecuteNonQuery();
+                        comm.Parameters.AddWithValue("@Username", useruser.Username);
+                        comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
+                        comm.Parameters.AddWithValue("@FullName", useruser.FullName);
+                        comm.Parameters.AddWithValue("@Password", useruser.Password);
+                        comm.Parameters.AddWithValue("@Gender", useruser.Gender);
+                        comm.Parameters.AddWithValue("@Email", useruser.Email);
+                        comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
+                        affectedRows = comm.ExecuteNonQuery();
+                    }
+
+                    //error becuase phonenumbeer can not accept 2 null becuase it is unique 
+                    //System.Data.SqlClient.SqlException: 'Violation of UNIQUE KEY constraint
+                    //'UQ__tmp_ms_x__85FB4E388289BC22'. Cannot insert duplicate key in object
+                    //'dbo.PersonUsers'. The duplicate key value is (<NULL>).
+
 
                     if (affectedRows > 0)
                     {
@@ -118,12 +144,13 @@ namespace FalaKAPP.Controllers
 
 
         //add child APIs either by his phone or by his parent phone:
+
+        // This web API will be called when we create a child with a card by his parent phone (generate QRCODE button)
         [HttpPost("addParentChild")]
-        // This web API will be called when we create a child with a card by his parent
-        public ActionResult AddParentChild(IFormFile MainImagePath, [FromForm] string username, string UserType, string FullName, string Password, int PhoneNumber, string Gender, string Email, string usernameType,
-            int YearOfBirth, string kinshipT, int MainPersonInChargeID)
+        public ActionResult AddParentChild(IFormFile MainImagePath, [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType,
+           [FromForm] int YearOfBirth, [FromForm] string kinshipT, [FromForm] int MainPersonInChargeID)
         {
-            // Create the user
+            // Create the child user
             PersonUsers userTemp = new PersonUsers()
             {
                 Username = username,
@@ -137,7 +164,6 @@ namespace FalaKAPP.Controllers
             };
 
             ActionResult<PersonUsers> user = signup(userTemp);
-            var conn = DatabaseSettings.dbConn;
             int useridforchild = DatabaseSettings.getID(username);
             if (user != null)
             {
@@ -161,8 +187,14 @@ namespace FalaKAPP.Controllers
                     {
                         MainImagePath.CopyTo(fileStream);
                     }
+
+                    //generate link qrcode for child to be use later on link process
                     string linkqrcode = QrCodeController.GenerateAndStoreQRCode(useridforchild);
+
+                    //generate link number for child to be use later on link process
                     int verficationCode = GetRandomNumber();
+
+
                     // Create the child object
                     PersonChilds childTemp = new PersonChilds()
                     {
@@ -205,7 +237,8 @@ namespace FalaKAPP.Controllers
         }
 
 
-        // Add the child 
+
+        // Add the child method to add child opject to personchild table
         public static ActionResult<PersonChilds> AddChild(PersonChilds child)
         {
 
@@ -232,8 +265,12 @@ namespace FalaKAPP.Controllers
         }
 
 
-        [HttpPost("createChildAccount")]  //this web API WILL BE called when we create childe with card by his phone
-        public ActionResult CreateChildAccount(IFormFile MainImagePath , [FromForm] string username, string UserType, string FullName, string Password, int PhoneNumber, string Gender, string Email, string usernameType, int YearOfbirth)
+
+
+
+        //this web API WILL BE called when we create childe with card by his phone
+        [HttpPost("createChildAccount")]  
+        public ActionResult CreateChildAccount(IFormFile MainImagePath , [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType, [FromForm] int YearOfbirth)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             if (conn.State != ConnectionState.Open)
@@ -278,8 +315,11 @@ namespace FalaKAPP.Controllers
                     {
                         MainImagePath.CopyTo(fileStream);
                     }
+
                     string linkqrcode = QrCodeController.GenerateAndStoreQRCode(useridforchild);
+
                     int verficationCode = GetRandomNumber();
+
                     // Create the child object
                     PersonChilds childTemp = new PersonChilds()
                     {
@@ -311,6 +351,7 @@ namespace FalaKAPP.Controllers
             return BadRequest("Error: Invalid image or model state");
         }
 
+        //to add child in personchild table
         public static ActionResult<PersonChilds> AddChildacc(PersonChilds child)
         {
 
