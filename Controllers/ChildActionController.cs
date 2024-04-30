@@ -29,6 +29,7 @@ namespace FalaKAPP.Controllers
                 {
                     using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                     {
+                    
                         string sql = "UPDATE PersonChilds SET MainPersonInChargeID = @UserID, kinshipT = @KinshipT, Boundry = @Boundry, AdditionalInformation = @AdditionalInformation WHERE ChildID = @ChildID";
                         using (SqlCommand command = new SqlCommand(sql, conn))
                         {
@@ -71,20 +72,20 @@ namespace FalaKAPP.Controllers
 
         }
 
-                //link by verification code will be invoked when user enter 4  digit code for link by application
+      //link by verification code will be invoked when user enter 4  digit code for link by application
         [HttpGet("verify_verification_code")]
         public IActionResult verify_verification_code(int ChildID, int VerificationCode)
         {
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "SELECT * FROM PersonChilds WHERE ChildID = @ChildID AND VerificationCode = @VerificationCode";
+                string sql = "SELECT * FROM PersonChilds WHERE ChildID = @ChildID ";
                 SqlCommand Comm = new SqlCommand(sql, conn);
                 Comm.Parameters.AddWithValue("@ChildID", ChildID);
-                Comm.Parameters.AddWithValue("@VerificationCode", VerificationCode);
+                
                 SqlDataReader reader = Comm.ExecuteReader();
-
-                if (reader.Read())
+                int verify = reader.GetInt32(reader.GetOrdinal("VerificationCode"));
+                if (reader.Read() && verify == VerificationCode)
                 {
                     reader.Close();
                     return Ok();
@@ -97,6 +98,9 @@ namespace FalaKAPP.Controllers
             }
         }
 
+
+
+
         //to get children information and display result in home list 
         [HttpGet("ChildHome/{UserID}")]
         public ActionResult<object> Getchild(int UserID)
@@ -104,7 +108,7 @@ namespace FalaKAPP.Controllers
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
-
+            //edit query by essa 
             string sql = "SELECT PC.ChildID, CN.FullName, PC.MainImagePath "+
                          "FROM PersonChilds PC "+
                          "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID "+
@@ -121,6 +125,7 @@ namespace FalaKAPP.Controllers
             {
                 var child = new
                 {
+                    childid = reader.GetInt32(reader.GetOrdinal())
                     FullName = reader.GetString(reader.GetOrdinal("FullName")),
                     MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"))
                 };

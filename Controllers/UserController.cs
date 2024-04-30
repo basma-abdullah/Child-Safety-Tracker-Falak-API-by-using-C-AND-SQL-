@@ -81,10 +81,9 @@ namespace FalaKAPP.Controllers
                 using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
                     conn.Open();
-                    if (useruser.UserType == "parent") {
-                         sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType, @Latitude, @Longitude)";
-                         comm = new SqlCommand(sqlAdd, conn);
-
+                    //if (useruser.UserType == "parent") {
+                        sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType, @Latitude, @Longitude)";
+                        comm = new SqlCommand(sqlAdd, conn);
                         comm.Parameters.AddWithValue("@Username", useruser.Username);
                         comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
                         comm.Parameters.AddWithValue("@FullName", useruser.FullName);
@@ -96,8 +95,8 @@ namespace FalaKAPP.Controllers
                         comm.Parameters.AddWithValue("@Latitude", useruser.Latitude);
                         comm.Parameters.AddWithValue("@Longitude", useruser.Longitude);
                         affectedRows = comm.ExecuteNonQuery();
-                    }
-                    else
+            
+                    /*else
                     {
                         sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password,  Gender, Email, UsernameType) VALUES (@Username, @UserType, @FullName, @Password, @Gender, @Email, @UsernameType)";
                          comm = new SqlCommand(sqlAdd, conn);
@@ -111,7 +110,7 @@ namespace FalaKAPP.Controllers
                         comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
                         affectedRows = comm.ExecuteNonQuery();
                     }
-
+                    */
                     //error becuase phonenumbeer can not accept 2 null becuase it is unique 
                     //System.Data.SqlClient.SqlException: 'Violation of UNIQUE KEY constraint
                     //'UQ__tmp_ms_x__85FB4E388289BC22'. Cannot insert duplicate key in object
@@ -195,6 +194,8 @@ namespace FalaKAPP.Controllers
                     int verficationCode = GetRandomNumber();
 
 
+
+
                     // Create the child object
                     PersonChilds childTemp = new PersonChilds()
                     {
@@ -207,11 +208,16 @@ namespace FalaKAPP.Controllers
                         VerificationCode = verficationCode,
                     };
 
+                    //QrCodeController qrCodeController = new QrCodeController();
+                    //generate information qrcode 
+                    //int informationqrcode = qrCodeController.GenerateQrCode(MainPersonInChargeID, useridforchild);
+
                     // Add the child to personchild
                     ActionResult<PersonChilds> child = AddChild(childTemp);
 
                     if (child.Value != null)
                     {
+                        //insert in follow child account
                         bool insertfollow = SettingController.insertHasCardMethod(useridforchild, MainPersonInChargeID , false ,false,"hascard");
                         if (insertfollow)
                         {
