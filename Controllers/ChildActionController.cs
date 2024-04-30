@@ -125,7 +125,7 @@ namespace FalaKAPP.Controllers
             {
                 var child = new
                 {
-                    childid = reader.GetInt32(reader.GetOrdinal())
+                    childid = reader.GetInt32(reader.GetOrdinal("ChildID")),
                     FullName = reader.GetString(reader.GetOrdinal("FullName")),
                     MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"))
                 };
