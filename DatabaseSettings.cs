@@ -30,7 +30,8 @@ namespace FalaKAPP
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
                     {
-                        if (reader.Read()) {
+                        if (reader.Read())
+                        {
                             bool exists = true;
                             return exists;
                         }
@@ -38,7 +39,7 @@ namespace FalaKAPP
                         {
                             return false;
                         }
-                        
+
                     }
                 }
             }
@@ -52,7 +53,7 @@ namespace FalaKAPP
                 string sql = "SELECT * FROM PersonUsers WHERE UserID = @ID";
                 using (SqlCommand cmd = new SqlCommand(sql, conn))
                 {
-                    conn.Open ();
+                    conn.Open();
                     cmd.Parameters.AddWithValue("@ID", ID);
 
                     using (SqlDataReader reader = cmd.ExecuteReader())
@@ -154,7 +155,7 @@ namespace FalaKAPP
                     command.Parameters.AddWithValue("@ChildID", childid);
                     conn.Open();
                     int count = (int)command.ExecuteScalar();
-                    if(count > 0)
+                    if (count > 0)
                     {
                         return true;
                     }

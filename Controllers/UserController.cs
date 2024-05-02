@@ -52,16 +52,31 @@ namespace FalaKAPP.Controllers
                             Gender = reader.GetString(reader.GetOrdinal("Gender")),
                             Email = reader.GetString(reader.GetOrdinal("Email")),
                             UsernameType = reader.GetString(reader.GetOrdinal("UsernameType")),
-                            Latitude = (float)reader.GetDouble(reader.GetOrdinal("Latitude")),
-                            Longitude = (float)reader.GetDouble(reader.GetOrdinal("Longitude"))
                         };
+                        // Nullable float type
+                        float? Latitude = null;
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("Latitude")))
+                        {
+                            Latitude = (float)reader.GetDouble(reader.GetOrdinal("Latitude"));
+                        }
+                        // Nullable float type
+                        float? longitude = null;
+
+                        if (!reader.IsDBNull(reader.GetOrdinal("Longitude")))
+                        {
+                            longitude = (float)reader.GetDouble(reader.GetOrdinal("Longitude"));
+                        }
+
+                        user.Latitude = Latitude;
+                        user.Longitude = longitude;
+
                         reader.Close();
-                        return Ok(user);
+                        return user;
                     }
-                    reader.Close();
                 }
 
-                return NotFound("User not exsist");
+                return NotFound("User does not exist");
             }
         }
 
@@ -81,42 +96,37 @@ namespace FalaKAPP.Controllers
                 using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
                 {
                     conn.Open();
+                  
                     //if (useruser.UserType == "parent") {
-                        sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType, Latitude, Longitude) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType, @Latitude, @Longitude)";
+                        sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password, PhoneNumber, Gender, Email, UsernameType) VALUES (@Username, @UserType, @FullName, @Password, @PhoneNumber, @Gender, @Email, @UsernameType)";
                         comm = new SqlCommand(sqlAdd, conn);
                         comm.Parameters.AddWithValue("@Username", useruser.Username);
                         comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
                         comm.Parameters.AddWithValue("@FullName", useruser.FullName);
                         comm.Parameters.AddWithValue("@Password", useruser.Password);
-                        comm.Parameters.AddWithValue("@PhoneNumber", useruser.PhoneNumber);
+                        if (useruser.PhoneNumber.HasValue)
+                        {
+                            comm.Parameters.AddWithValue("@PhoneNumber", useruser.PhoneNumber);
+                        }
+                        else
+                        {
+                            comm.Parameters.AddWithValue("@PhoneNumber", DBNull.Value);
+                        }
+
                         comm.Parameters.AddWithValue("@Gender", useruser.Gender);
-                        comm.Parameters.AddWithValue("@Email", useruser.Email);
+                        if (useruser.Email != null)
+                        {
+                            comm.Parameters.AddWithValue("@Email", useruser.Email);
+                        }
+                        else
+                        {
+                            comm.Parameters.AddWithValue("@Email", DBNull.Value);
+                        }
+                    
                         comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
-                        comm.Parameters.AddWithValue("@Latitude", useruser.Latitude);
-                        comm.Parameters.AddWithValue("@Longitude", useruser.Longitude);
                         affectedRows = comm.ExecuteNonQuery();
             
-                    /*else
-                    {
-                        sqlAdd = "INSERT INTO PersonUsers (Username, UserType, FullName, Password,  Gender, Email, UsernameType) VALUES (@Username, @UserType, @FullName, @Password, @Gender, @Email, @UsernameType)";
-                         comm = new SqlCommand(sqlAdd, conn);
-
-                        comm.Parameters.AddWithValue("@Username", useruser.Username);
-                        comm.Parameters.AddWithValue("@UserType", useruser.UserType.ToLower());
-                        comm.Parameters.AddWithValue("@FullName", useruser.FullName);
-                        comm.Parameters.AddWithValue("@Password", useruser.Password);
-                        comm.Parameters.AddWithValue("@Gender", useruser.Gender);
-                        comm.Parameters.AddWithValue("@Email", useruser.Email);
-                        comm.Parameters.AddWithValue("@UsernameType", useruser.UsernameType.ToLower());
-                        affectedRows = comm.ExecuteNonQuery();
-                    }
-                    */
-                    //error becuase phonenumbeer can not accept 2 null becuase it is unique 
-                    //System.Data.SqlClient.SqlException: 'Violation of UNIQUE KEY constraint
-                    //'UQ__tmp_ms_x__85FB4E388289BC22'. Cannot insert duplicate key in object
-                    //'dbo.PersonUsers'. The duplicate key value is (<NULL>).
-
-
+                    
                     if (affectedRows > 0)
                     {
                         int userId = DatabaseSettings.getID(useruser.Username);
@@ -146,9 +156,10 @@ namespace FalaKAPP.Controllers
 
         // This web API will be called when we create a child with a card by his parent phone (generate QRCODE button)
         [HttpPost("addParentChild")]
-        public ActionResult AddParentChild(IFormFile MainImagePath, [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType,
+        public ActionResult AddParentChild(IFormFile MainImagePath, [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int? PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType,
            [FromForm] int YearOfBirth, [FromForm] string kinshipT, [FromForm] int MainPersonInChargeID)
         {
+       
             // Create the child user
             PersonUsers userTemp = new PersonUsers()
             {
@@ -169,23 +180,24 @@ namespace FalaKAPP.Controllers
                 // Check if the MainImagePath and model state are valid
                 if (MainImagePath != null && ModelState.IsValid)
                 {
-                    // Extract the original file name and extension
-                    string fileName = Path.GetFileName(MainImagePath.FileName);
+
 
                     // Generate the image file name
-                    string imageFileName = Guid.NewGuid().ToString() + Path.GetExtension(fileName).ToLower();
+                    string imageFileName = useridforchild.ToString();
+
+                    //add extension to image
+                    imageFileName += Path.GetExtension(MainImagePath.FileName).ToLower();
 
                     // Get the image folder path
-                    string imageFolderPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), DatabaseSettings.ImageDirectory_AddPath));
-
-                    // Combine the image folder path with the image file name
-                    string imageFilePath = Path.Combine(imageFolderPath, imageFileName);
+                    string imageFolderPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(),DatabaseSettings.ImageDirectory_AddPath));
 
                     // Save the uploaded image to the specified file path
-                    using (var fileStream = new FileStream(imageFilePath, FileMode.Create))
-                    {
-                        MainImagePath.CopyTo(fileStream);
-                    }
+                    using (var fileStream = new FileStream(Path.Combine(imageFolderPath,imageFileName), FileMode.Create))
+
+                    MainImagePath.CopyToAsync(fileStream);
+
+    
+
 
                     //generate link qrcode for child to be use later on link process
                     string linkqrcode = QrCodeController.GenerateAndStoreQRCode(useridforchild);
@@ -201,16 +213,14 @@ namespace FalaKAPP.Controllers
                     {
                         ChildID = useridforchild,
                         YearOfBirth = YearOfBirth,
-                        MainImagePath = DatabaseSettings.ImageDirectory_AddPath + "/" + imageFileName,
-                        KinshipT = kinshipT,
+                        MainImagePath = DatabaseSettings.ImageDirectory_ReadPath + "/" + imageFileName,
+
+                    KinshipT = kinshipT,
                         MainPersonInChargeID = MainPersonInChargeID,
                         QRCodeLink = linkqrcode,
                         VerificationCode = verficationCode,
                     };
 
-                    //QrCodeController qrCodeController = new QrCodeController();
-                    //generate information qrcode 
-                    //int informationqrcode = qrCodeController.GenerateQrCode(MainPersonInChargeID, useridforchild);
 
                     // Add the child to personchild
                     ActionResult<PersonChilds> child = AddChild(childTemp);
@@ -276,13 +286,14 @@ namespace FalaKAPP.Controllers
 
         //this web API WILL BE called when we create childe with card by his phone
         [HttpPost("createChildAccount")]  
-        public ActionResult CreateChildAccount(IFormFile MainImagePath , [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType, [FromForm] int YearOfbirth)
+        public ActionResult CreateChildAccount(IFormFile MainImagePath , [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int? PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType, [FromForm] int YearOfbirth)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             if (conn.State != ConnectionState.Open)
             {
                 conn.Open();
             }
+
             // we have to create his user
             PersonUsers userTemp = new PersonUsers()
             {
@@ -296,6 +307,8 @@ namespace FalaKAPP.Controllers
                 UsernameType = usernameType
             };
 
+                
+                
             ActionResult<PersonUsers> user = signup(userTemp);
 
             int useridforchild = DatabaseSettings.getID(username);
@@ -304,26 +317,26 @@ namespace FalaKAPP.Controllers
                 // Check if the MainImagePath and model state are valid
                 if (MainImagePath != null && ModelState.IsValid)
                 {
-                    // Extract the original file name and extension
-                    string fileName = Path.GetFileName(MainImagePath.FileName);
 
                     // Generate the image file name
-                    string imageFileName = Guid.NewGuid().ToString() + Path.GetExtension(fileName).ToLower();
+                    string imageFileName = useridforchild.ToString();
+
+                    //add extension to image
+                    imageFileName += Path.GetExtension(MainImagePath.FileName).ToLower();
 
                     // Get the image folder path
                     string imageFolderPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), DatabaseSettings.ImageDirectory_AddPath));
 
-                    // Combine the image folder path with the image file name
-                    string imageFilePath = Path.Combine(imageFolderPath, imageFileName);
-
                     // Save the uploaded image to the specified file path
-                    using (var fileStream = new FileStream(imageFilePath, FileMode.Create))
-                    {
-                        MainImagePath.CopyTo(fileStream);
-                    }
+                    using (var fileStream = new FileStream(Path.Combine(imageFolderPath, imageFileName), FileMode.Create))
 
+                        MainImagePath.CopyToAsync(fileStream);
+
+
+                    //generate link qrcode 
                     string linkqrcode = QrCodeController.GenerateAndStoreQRCode(useridforchild);
 
+                    //generate link verification code 
                     int verficationCode = GetRandomNumber();
 
                     // Create the child object

@@ -132,11 +132,10 @@ namespace FalaKAPP.Controllers
                     string sql = "INSERT into permissionToFollow( PersonInChargeID, PermissionPersonID,ChildID , KinshipT )values ( @PersonInChargeID , @permissionpersonid , @ChildID ,@KinshipT)";
                     using (SqlCommand command = new SqlCommand(sql, conn))
                     {
-
                         command.Parameters.AddWithValue("@PersonInChargeID", PersonInChargeID);
                         command.Parameters.AddWithValue("@permissionpersonid", permissionpersonid);
-                        command.Parameters.AddWithValue("@ChildID", ChildID);
-                        command.Parameters.AddWithValue("@KinshipT", kinshipT);
+                        command.Parameters.AddWithValue("@ChildID" , ChildID);
+                        command.Parameters.AddWithValue("@KinshipT", kinshipT); 
                         int affectedrow = command.ExecuteNonQuery();
                         if (affectedrow > 0)
                         {
@@ -210,8 +209,6 @@ namespace FalaKAPP.Controllers
 
 
         //To retrieve a list of THE permission statues THAT i have SEND اشوف حالات الاذونات الى ارسلتها 
-
-
         [HttpGet("Getpermissionstatues/{personInChargeID}")]
         public IActionResult Getpermissionstatues(int personInChargeID)
         {

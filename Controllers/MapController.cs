@@ -10,43 +10,43 @@ namespace FalaKAPP.Controllers
     public class MapController : ControllerBase
     {
         [HttpGet("tracking_children")]
-        public IActionResult GetTrackingDetailsForChildren([FromBody] List<int> childIDs)
+        public ActionResult<IEnumerable<object>> GetTrackinglocationForChildren(int userID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
             List<object> results = new List<object>();
 
-            foreach (int childID in childIDs)
-            {
-                string sql = @"
-            SELECT TOP 1 trackDetail.Longitude, trackDetail.Latitude
-            FROM PersonUsers AS users
-            JOIN PersonChilds AS child ON users.UserID = child.MainPersonInChargeID
-            JOIN FollowChilds AS follow ON child.ChildID = follow.ChildId
-            JOIN TrackingChildMaster AS trackMaster ON follow.LinkChildsID = trackMaster.LinkChildsID
-            JOIN TrackingChildPlaceDetail AS trackDetail ON trackMaster.TrackingChildMasterID = trackDetail.TrackingChildMasterID
-            WHERE child.ChildID = @ChildID
-            ORDER BY trackDetail.DateTime DESC";
 
-                using (var command = new SqlCommand(sql, conn))
+            string sql = @"
+                            SELECT TOP 1 follow.ChildId, trackDetail.Longitude, trackDetail.Latitude
+                            FROM FollowChilds AS follow
+                            JOIN TrackingChildMaster AS trackMaster ON follow.LinkChildsID = trackMaster.LinkChildsID
+                            JOIN TrackingChildPlaceDetail AS trackDetail ON trackMaster.TrackingChildMasterID = trackDetail.TrackingChildMasterID
+                            WHERE follow.PersonInChargeID = @userID
+                            ORDER BY trackDetail.DateTime DESC";
+
+            using (var command = new SqlCommand(sql, conn))
                 {
-                    command.Parameters.AddWithValue("@ChildID", childID);
+                    command.Parameters.AddWithValue("@userID", userID);
 
                     using (var reader = command.ExecuteReader())
                     {
-                        if (reader.HasRows)
+                    if (reader.HasRows)
+                    {
+                        while (reader.Read())
                         {
-                            reader.Read();
-                            double longitude = reader.GetInt32(reader.GetOrdinal("Longitude"));
-                            double latitude = reader.GetInt32(reader.GetOrdinal("Latitude"));
+                            int childID = reader.GetInt32(reader.GetOrdinal("ChildId"));
+                            double longitude = reader.GetDouble(reader.GetOrdinal("Longitude"));
+                            double latitude = reader.GetDouble(reader.GetOrdinal("Latitude"));
 
                             var result = new { ChildID = childID, Longitude = longitude, Latitude = latitude };
                             results.Add(result);
                         }
                     }
                 }
-            }
+                }
+            
 
             conn.Close();
 
@@ -60,7 +60,7 @@ namespace FalaKAPP.Controllers
             }
         }
 
-
+        /*
         [HttpGet("tracking_child/{userID}/{childID}")]
         public IActionResult GetTrackingDetails(int userID, int childID)
         {
@@ -105,22 +105,20 @@ namespace FalaKAPP.Controllers
                 }
             
             }
-
+        */
         [HttpGet("trackinghistory/{userID}/{childID}")]
-        public IActionResult GetTrackingHistory(int userID, int childID)
+        public ActionResult<IEnumerable<object>> GetTrackingHistory(int userID, int childID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
             string sql = @"
-                    SELECT TOP 10 trackDetail.Longitude, trackDetail.Latitude
-                    FROM PersonUsers AS users
-                    JOIN PersonChilds AS child ON users.UserID = child.MainPersonInChargeID
-                    JOIN FollowChilds AS follow ON child.ChildID = follow.ChildId
-                    JOIN TrackingChildMaster AS trackMaster ON follow.LinkChildsID = trackMaster.LinkChildsID
-                    JOIN TrackingChildPlaceDetail AS trackDetail ON trackMaster.TrackingChildMasterID = trackDetail.TrackingChildMasterID
-                    WHERE users.UserID = @UserID AND child.ChildID = @ChildID
-                    ORDER BY trackDetail.DateTime DESC";
+                            SELECT TOP 10  trackDetail.Longitude, trackDetail.Latitude
+                            FROM FollowChilds AS follow
+                            JOIN TrackingChildMaster AS trackMaster ON follow.LinkChildsID = trackMaster.LinkChildsID
+                            JOIN TrackingChildPlaceDetail AS trackDetail ON trackMaster.TrackingChildMasterID = trackDetail.TrackingChildMasterID
+                            WHERE follow.PersonInChargeID = @UserID AND follow.ChildID = @ChildID
+                            ORDER BY trackDetail.DateTime DESC";
 
             using (var command = new SqlCommand(sql, conn))
             {
@@ -131,13 +129,16 @@ namespace FalaKAPP.Controllers
 
                 using (var reader = command.ExecuteReader())
                 {
-                    while (reader.Read())
+                    if (reader.HasRows)
                     {
-                        double longitude = reader.GetInt32(reader.GetOrdinal("Longitude"));
-                        double latitude = reader.GetInt32(reader.GetOrdinal("Latitude"));
+                        while (reader.Read())
+                        {
+                            double longitude = reader.GetDouble(reader.GetOrdinal("Longitude"));
+                            double latitude = reader.GetDouble(reader.GetOrdinal("Latitude"));
 
-                        var result = new { Longitude = longitude, Latitude = latitude };
-                        resultList.Add(result);
+                            var result = new { Longitude = longitude, Latitude = latitude };
+                            resultList.Add(result);
+                        }
                     }
                 }
 
