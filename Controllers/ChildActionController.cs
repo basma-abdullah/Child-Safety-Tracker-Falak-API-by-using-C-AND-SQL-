@@ -108,12 +108,9 @@ namespace FalaKAPP.Controllers
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
-            //edit query by essa 
-            string sql = "SELECT PC.ChildID, CN.FullName, PC.MainImagePath "+
-                         "FROM PersonChilds PC "+
-                         "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID "+
-                         "JOIN PersonUsers CN ON PC.ChildID = CN.UserID "+
-                         "WHERE PC.MainPersonInChargeID = @UserID";
+            //query 
+            string sql = "select ch.ChildId ,ch.mainImagePath, kinshipT ,pu.FullName as childName,pu.Gender, ch.YearOfBirth ,pr.PhoneNumber as parentnumber , ch.Boundry , ch.Longitude, ch.Latitude from PersonChilds ch ,PersonUsers pu , PersonUsers pr where MainPersonInChargeID = @UserID AND (ch.ChildID = pu.UserID) AND MainPersonInChargeID = pr.UserID";
+            
 
             SqlCommand Comm = new SqlCommand(sql, conn);
             Comm.Parameters.AddWithValue("@UserID", UserID);
@@ -123,12 +120,32 @@ namespace FalaKAPP.Controllers
             List<object> childsprofile = new List<object>();
             while (reader.Read())
             {
+                float? Latitude = null;
+                if (!reader.IsDBNull(reader.GetOrdinal("Latitude")))
+                {
+                    Latitude = (float)reader.GetDouble(reader.GetOrdinal("Latitude"));
+                }
+                // Nullable float type
+                float? longitude = null;
+
+                if (!reader.IsDBNull(reader.GetOrdinal("Longitude")))
+                {
+                    longitude = (float)reader.GetDouble(reader.GetOrdinal("Longitude"));
+                }
                 var child = new
                 {
                     childid = reader.GetInt32(reader.GetOrdinal("ChildID")),
-                    FullName = reader.GetString(reader.GetOrdinal("FullName")),
-                    MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"))
-                };
+                    MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath")),
+                    kinshipT = reader.GetString(reader.GetOrdinal("kinshipT")),
+                    childName = reader.GetString(reader.GetOrdinal("childName")),
+                    Gender = reader.GetString(reader.GetOrdinal("Gender")),
+                    YearOfBirth = reader.GetInt32(reader.GetOrdinal("YearOfBirth")),
+                    Boundry = reader.GetInt32(reader.GetOrdinal("Boundry")),
+                    parentnumber = reader.GetInt32(reader.GetOrdinal("parentnumber")),
+                    Latitude = Latitude,
+                    Longitude = longitude,
+            };
+                
 
                 childsprofile.Add(child);
             }
@@ -144,77 +161,34 @@ namespace FalaKAPP.Controllers
         }
 
 
-
-        //to get more deteail information when click on specific child 
-        [HttpGet("ChildProfile/{childID}")]
-        public ActionResult<object> ChildProfile(string childID)
+        [HttpPut("updateChildLocation")]
+        public IActionResult updateChildLocation(int childID, float Longitude , float Latitude)
         {
-            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
-
-            conn.Open();
-
-            string sql = @"SELECT
-                    PU.FullName AS FullName,
-                    PC.YearOfBirth AS YearOfBirth,
-                    PC.MainIm
-
-Path AS MainImagePath,
-                    PU.PhoneNumber AS PhoneNumber,
-                    PC.QRCodeInfo AS QRCode,
-                    PC.Boundry AS Boundary,
-                    D.DeviceBattery AS DeviceBattery,
-                    FC.TrackingActiveType AS TrackingActiveType,
-                    LNR.LostNotificationRequestId AS LostNotificationRequestId
-                FROM
-                    PersonChilds PC
-                    INNER JOIN PersonUsers PU ON PC.ChildID = PU.UserID
-                    LEFT JOIN Devices D ON D.ChildID = PC.ChildID
-                    LEFT JOIN FollowChilds FC ON FC.ChildId = PC.ChildID
-                    LEFT JOIN LostNotificationRequest LNR ON LNR.TrackingChildMasterID = PC.ChildID
-                WHERE
-                    PC.ChildID = @ChildID";
-
-            using (SqlCommand comm = new SqlCommand(sql, conn))
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
-                comm.Parameters.AddWithValue("@ChildID", childID);
+                conn.Open();
+                string sql = "UPDATE PersonChilds SET Longitude = @Longitude , Latitude = @Latitude WHERE ChildID = @ChildID";
+                SqlCommand command = new SqlCommand(sql, conn);
+                command.Parameters.AddWithValue("@ChildID", childID);
+                command.Parameters.AddWithValue("@Longitude", Longitude);
+                command.Parameters.AddWithValue("@Latitude", Latitude);
 
-                using (SqlDataReader reader = comm.ExecuteReader())
+                int rowsAffected = command.ExecuteNonQuery();
+
+                if (rowsAffected > 0)
                 {
-                    if (reader.Read())
-                    {
-
-                        var childProfile = new 
-                        {
-                            MainImagePath = reader.IsDBNull(reader.GetOrdinal("MainImagePath")) ? null : reader.GetString(reader.GetOrdinal("MainImagePath")),
-                            FullName = reader.IsDBNull(reader.GetOrdinal("FullName")) ? null : reader.GetString(reader.GetOrdinal("FullName")),
-                            YearOfBirth = reader.IsDBNull(reader.GetOrdinal("YearOfBirth")) ?  default(int) : reader.GetInt32(reader.GetOrdinal("YearOfBirth")),
-                            TrackingActiveType = reader.IsDBNull(reader.GetOrdinal("TrackingActiveType")) ? null : reader.GetString(reader.GetOrdinal("TrackingActiveType")),
-                            DeviceBattery = reader.IsDBNull(reader.GetOrdinal("DeviceBattery")) ? default(int) : reader.GetInt32(reader.GetOrdinal("DeviceBattery")),
-                            PhoneNumber = reader.IsDBNull(reader.GetOrdinal("PhoneNumber")) ? default(int) : reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
-                            QRCode = reader.IsDBNull(reader.GetOrdinal("QRCode")) ? default(string) : reader.GetString(reader.GetOrdinal("QRCode")),
-                            Boundary = reader.IsDBNull(reader.GetOrdinal("Boundary")) ? default(int) : reader.GetInt32(reader.GetOrdinal("Boundary")),
-                            LostNotificationRequestId = reader.IsDBNull(reader.GetOrdinal("LostNotificationRequestId")) ? default(int) : reader.GetInt32(reader.GetOrdinal("LostNotificationRequestId"))
-                        };
-
-                        reader.Close();
-                        conn.Close();
-                        return Ok(childProfile);
-                    }
-                    else
-                    {
-                        reader.Close();
-                        conn.Close();
-                        return NotFound("Empty");
-                    }
+                    return Ok();
+                }
+                else
+                {
+                    return BadRequest();
                 }
             }
-
-   
         }
 
 
-    
-        }
+
+    }
 
     }
 
