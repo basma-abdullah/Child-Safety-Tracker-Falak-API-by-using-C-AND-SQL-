@@ -61,7 +61,7 @@ namespace QRCodes.Controllers
 
 
 
-
+            string base64Image;
             // Save the QR code image to a memory stream
             using (MemoryStream memoryStream = new MemoryStream())
             {
@@ -69,7 +69,7 @@ namespace QRCodes.Controllers
                 //memoryStream.Position = 0;
 
                 // Convert the QR code image to a base64 string
-                string base64Image = ConvertImageToBase64(qrCodeImage);
+                 base64Image = ConvertImageToBase64(qrCodeImage);
 
 
                 // Store the QR code image in the database
@@ -77,7 +77,7 @@ namespace QRCodes.Controllers
             }
 
             // Return a success response
-            return Ok("QR code generated and stored in the database.");
+            return Ok(base64Image);
             // Save the QR code image to a memory stream
             //MemoryStream memoryStream = new MemoryStream();
             //qrCodeImage.Save(memoryStream, ImageFormat.Png);
@@ -177,7 +177,7 @@ namespace QRCodes.Controllers
                 }
             }
         }
-
+        /*
         [HttpGet("getQrCode/{childId}")]
         public IActionResult GetQrCode(int childId)
         {
@@ -189,10 +189,10 @@ namespace QRCodes.Controllers
             }
 
             // Convert the QR code string to a byte array
-            byte[] qrCodeBytes = Convert.FromBase64String(qrCodeString);
+            //byte[] qrCodeBytes = Convert.FromBase64String(qrCodeString);
 
-            // Return the byte array as an image file
-            return File(qrCodeBytes, "image/png");
+            // Return the byte array as an image file File(qrCodeBytes, "image/png")
+            return Ok(qrCodeString);
         }
 
         private string GetQrCodeFromDatabase(int childId)
@@ -223,7 +223,7 @@ namespace QRCodes.Controllers
 
             return null;
         }
-
+        
         private Bitmap ConvertStringToImage(string qrCodeString)
         {
             try
@@ -243,7 +243,7 @@ namespace QRCodes.Controllers
                 return null;
             }
         }
-
+        */
         private string ConvertImageToBase64(Bitmap image)
         {
             using (MemoryStream memoryStream = new MemoryStream())
@@ -257,7 +257,7 @@ namespace QRCodes.Controllers
                 return base64String;
             }
         }
-
+        
 
         public class ChildInformation
         {

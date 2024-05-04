@@ -68,7 +68,7 @@ namespace FalaKAPP.Controllers
                     {
                         if (reader.Read())
                         {
-                            // Retrieve the child information from the reader
+                            //Retrieve the child information from the reader
                             var childID = reader.GetInt32(reader.GetOrdinal("ChildID"));
                             var fullName = reader.GetString(reader.GetOrdinal("FullName"));
                             var MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"));

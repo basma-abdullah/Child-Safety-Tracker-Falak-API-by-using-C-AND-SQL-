@@ -9,11 +9,11 @@ namespace FalaKAPP.Models
         [Required]
         public int TrackingChildMasterID { get; set; }
         [Required]
-        public DateTime DateTime { get; set; }
+        public DateTime? DateTime { get; set; }
         [Required]
-        public int Latitude { get; set; }
+        public decimal Latitude { get; set; }
         [Required]
-        public int Longitude { get; set; }
+        public decimal Longitude { get; set; }
         
     }
 }

@@ -100,10 +100,9 @@ namespace FalaKAPP.Controllers
 
 
 
-
         //to get children information and display result in home list 
         [HttpGet("ChildHome/{UserID}")]
-        public ActionResult<object> Getchild(int UserID)
+        public ActionResult<IEnumerable<object>> Getchild(int UserID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
