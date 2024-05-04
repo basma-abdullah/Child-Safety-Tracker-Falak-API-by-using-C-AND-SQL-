@@ -83,7 +83,7 @@ namespace FalaKAPP.Controllers
 
 
 
-
+        /*
         [HttpGet("tracking_children")]
         public ActionResult<IEnumerable<object>> GetTrackinglocationForChildren(int userID)
         {
@@ -134,7 +134,7 @@ namespace FalaKAPP.Controllers
                 return NotFound("Tracking details not found for any childID");
             }
         }
-
+        */
         /*
         [HttpGet("tracking_child/{userID}/{childID}")]
         public IActionResult GetTrackingDetails(int userID, int childID)
@@ -181,6 +181,7 @@ namespace FalaKAPP.Controllers
             
             }
         */
+        /*
         [HttpGet("trackinghistory/{userID}/{childID}")]
         public ActionResult<IEnumerable<object>> GetTrackingHistory(int userID, int childID)
         {
@@ -231,7 +232,7 @@ namespace FalaKAPP.Controllers
 
 
             }
-
+        */
         }
 
     }

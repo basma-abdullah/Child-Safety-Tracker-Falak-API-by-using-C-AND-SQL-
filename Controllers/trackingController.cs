@@ -96,7 +96,7 @@ namespace FalaKAPP.Controllers
                             insertCommand.Parameters.AddWithValue("@TrackingChildMasterID", trackingMasterID);
                             insertCommand.ExecuteNonQuery();
                         }
-                        
+
                         string updateQuery2 = "UPDATE TrackingChildMaster SET LastChildLocationLongitude = @LastLocationLongitude, LastChildLocationLatitude = @LastLocationLatitude , EndTrackingTime = @EndTrackingTime WHERE TrackingChildMasterID = @TrackingChildMasterID";
                         SqlCommand command2 = new SqlCommand(updateQuery2, conn, transaction);
 
@@ -161,9 +161,11 @@ namespace FalaKAPP.Controllers
         }
 
 
+        //update parent reaction when close the track 
+
         //update parent location
         [HttpPost("Updateandinsertlastlocationforparent")]
-        public IActionResult Updateandinsertlastlocationforparent(int UserID, decimal Latitude, decimal Longitude)
+        public IActionResult Updateandinsertlastlocationforparent(int UserID, decimal Latitude, decimal Longitude, string DevicesuppliedType)
         {
             DateTime currentDateTime = DateTime.Now;
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
@@ -171,39 +173,86 @@ namespace FalaKAPP.Controllers
                 conn.Open();
                 using (SqlTransaction transaction = conn.BeginTransaction())
                 {
-            
-                        string insertQuery = "INSERT INTO volunteerHistoricalLocation (PersonID, dateTime, Longitude,Latitude) VALUES (@PersonID, @dateTime, @Longitude, @Latitude)";
-                        SqlCommand insertCommand = new SqlCommand(insertQuery, conn, transaction);
 
-                            insertCommand.Parameters.Clear();
-                            insertCommand.Parameters.AddWithValue("@PersonID", UserID);
-                            insertCommand.Parameters.AddWithValue("@dateTime", currentDateTime);
-                            insertCommand.Parameters.AddWithValue("@Longitude", Longitude);
-                            insertCommand.Parameters.AddWithValue("@Latitude", Latitude);
-                            insertCommand.ExecuteNonQuery();
-
-
-                    string updateQuery2 = "UPDATE PersonUsers SET Latitude = @Latitude, Longitude = @Longitude , Volunteeractivationstatus = @Volunteeractivationstatus WHERE UserID = @UserID";
-                        SqlCommand command2 = new SqlCommand(updateQuery2, conn, transaction);
-                            command2.Parameters.Clear();
-                            command2.Parameters.AddWithValue("@Latitude", Latitude);
-                            command2.Parameters.AddWithValue("@Longitude", Longitude);
-                            command2.Parameters.AddWithValue("@Volunteeractivationstatus", Volunteeractivationstatus);
-                            command2.ExecuteNonQuery();
-     
-
-                       
-
-                        transaction.Commit();
-
-                        return Ok();
+                    string insertQuery = "INSERT INTO volunteerHistoricalLocation (PersonID, dateTime, Longitude,Latitude , DevicesuppliedType) VALUES (@PersonID, @dateTime, @Longitude, @Latitude , @DevicesuppliedType)";
+                    SqlCommand insertCommand = new SqlCommand(insertQuery, conn, transaction);
+                    insertCommand.Parameters.AddWithValue("@PersonID", UserID);
+                    insertCommand.Parameters.AddWithValue("@dateTime", currentDateTime);
+                    insertCommand.Parameters.AddWithValue("@Longitude", Longitude);
+                    insertCommand.Parameters.AddWithValue("@Latitude", Latitude);
+                    insertCommand.Parameters.AddWithValue("@DevicesuppliedType", DevicesuppliedType);
+                    insertCommand.ExecuteNonQuery();
 
 
-                     
-        
+                    string updateQuery2 = "UPDATE PersonUsers SET Latitude = @Latitude, Longitude = @Longitude , VoulnteerChildLocationID = (select TOP 1 volunteerLocationId from volunteerHistoricalLocation where UserID = @UserID ORDER BY dateTime DESC) WHERE UserID = @UserID";
+                    SqlCommand command2 = new SqlCommand(updateQuery2, conn, transaction);
+                    command2.Parameters.AddWithValue("@Latitude", Latitude);
+                    command2.Parameters.AddWithValue("@Longitude", Longitude);
+                    command2.Parameters.AddWithValue("@UserID", UserID);
+                    command2.ExecuteNonQuery();
+                    transaction.Commit();
+
+                    return Ok();
+
+
+
+
 
                 }
             }
+        }
+
+
+        //to get child hestory 
+        [HttpGet("trackinghistory/{userID}/{childID}")]
+        public ActionResult<IEnumerable<object>> GetTrackingHistory(int userID, int childID)
+        {
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
+            conn.Open();
+
+            string sql = @"
+                            SELECT TOP 10  trackDetail.Longitude, trackDetail.Latitude
+                            FROM FollowChilds AS follow
+                            JOIN TrackingChildMaster AS trackMaster ON follow.LinkChildsID = trackMaster.LinkChildsID
+                            JOIN TrackingChildPlaceDetail AS trackDetail ON trackMaster.TrackingChildMasterID = trackDetail.TrackingChildMasterID
+                            WHERE follow.PersonInChargeID = @UserID AND follow.ChildID = @ChildID
+                            ORDER BY trackDetail.DateTime DESC";
+
+            using (var command = new SqlCommand(sql, conn))
+            {
+                command.Parameters.AddWithValue("@UserID", userID);
+                command.Parameters.AddWithValue("@ChildID", childID);
+
+                var resultList = new List<object>();
+
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.HasRows)
+                    {
+                        while (reader.Read())
+                        {
+                            double longitude = reader.GetDouble(reader.GetOrdinal("Longitude"));
+                            double latitude = reader.GetDouble(reader.GetOrdinal("Latitude"));
+
+                            var result = new { Longitude = longitude, Latitude = latitude };
+                            resultList.Add(result);
+                        }
+                    }
+                }
+
+                if (resultList.Count > 0)
+                {
+                    conn.Close();
+                    return Ok(resultList);
+                }
+                else
+                {
+                    conn.Close();
+                    return NotFound("Tracking details not found");
+                }
+            }
+
+
         }
 
     }

@@ -138,7 +138,7 @@ namespace FalaKAPP.Controllers
         }
 
 
-        [HttpGet("getcurrentrequest/{UserID}")]
+        [HttpGet("gethistoryrequest/{UserID}")]
         public ActionResult<Object> gethistoryrequest(int UserID)
         {
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
@@ -186,7 +186,7 @@ namespace FalaKAPP.Controllers
             }
         }
 
-        [HttpGet("gethistoryrequest/{UserID}")]
+        [HttpGet("getcurrentrequest/{UserID}")]
         public ActionResult<Object> getcurrentrequest(int UserID)
         {
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))

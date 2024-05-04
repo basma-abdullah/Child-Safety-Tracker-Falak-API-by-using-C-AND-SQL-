@@ -108,7 +108,7 @@ namespace FalaKAPP.Controllers
             conn.Open();
 
             //query 
-            string sql = "select ch.ChildId ,ch.mainImagePath, kinshipT ,pu.FullName as childName,pu.Gender, ch.YearOfBirth ,pr.PhoneNumber as parentnumber , ch.Boundry , ch.Longitude, ch.Latitude from PersonChilds ch ,PersonUsers pu , PersonUsers pr where MainPersonInChargeID = @UserID AND (ch.ChildID = pu.UserID) AND MainPersonInChargeID = pr.UserID";
+            string sql = "select ch.ChildId ,ch.mainImagePath, kinshipT ,pu.FullName as childName,pu.Gender, ch.YearOfBirth ,pr.PhoneNumber as parentnumber ,ch.isConnect , ch.Boundry , ch.Longitude, ch.Latitude from PersonChilds ch ,PersonUsers pu , PersonUsers pr where MainPersonInChargeID = @UserID AND (ch.ChildID = pu.UserID) AND MainPersonInChargeID = pr.UserID";
             
 
             SqlCommand Comm = new SqlCommand(sql, conn);
@@ -141,6 +141,7 @@ namespace FalaKAPP.Controllers
                     YearOfBirth = reader.GetInt32(reader.GetOrdinal("YearOfBirth")),
                     Boundry = reader.GetInt32(reader.GetOrdinal("Boundry")),
                     parentnumber = reader.GetInt32(reader.GetOrdinal("parentnumber")),
+                    isConnect = reader.GetString(reader.GetOrdinal("isConnect")),
                     Latitude = Latitude,
                     Longitude = longitude,
             };
@@ -159,7 +160,7 @@ namespace FalaKAPP.Controllers
             return NotFound("Link your children");
         }
 
-
+/*
         [HttpPut("updateChildLocation")]
         public IActionResult updateChildLocation(int childID, float Longitude , float Latitude)
         {
@@ -184,7 +185,7 @@ namespace FalaKAPP.Controllers
                 }
             }
         }
-
+*/
 
 
     }
