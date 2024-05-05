@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Dynamic;
+using System.Text;
+
 //using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 using static QRCodes.Controllers.QrCodeController;
 
@@ -98,11 +100,74 @@ namespace FalaKAPP.Controllers
             }
         }
 
-
-
         //to get children information and display result in home list 
         [HttpGet("ChildHome/{UserID}")]
-        public ActionResult<IEnumerable<object>> Getchild(int UserID)
+        public ActionResult<string> Getchild(int UserID)
+        {
+            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
+            conn.Open();
+
+            //query 
+            string sql = "SELECT ch.ChildId, ch.mainImagePath, kinshipT, pu.FullName AS childName, pu.Gender, ch.YearOfBirth, pr.PhoneNumber AS parentnumber, ch.isConnect, ch.Boundry, ch.Longitude, ch.Latitude FROM PersonChilds ch, PersonUsers pu, PersonUsers pr WHERE MainPersonInChargeID = @UserID AND (ch.ChildID = pu.UserID) AND MainPersonInChargeID = pr.UserID";
+
+            SqlCommand Comm = new SqlCommand(sql, conn);
+            Comm.Parameters.AddWithValue("@UserID", UserID);
+
+            SqlDataReader reader = Comm.ExecuteReader();
+
+            StringBuilder resultBuilder = new StringBuilder();
+            resultBuilder.AppendLine("{"); // Start of JSON object
+
+            while (reader.Read())
+            {
+                float? latitude = null;
+                if (!reader.IsDBNull(reader.GetOrdinal("Latitude")))
+                {
+                    latitude = (float)reader.GetDouble(reader.GetOrdinal("Latitude"));
+                }
+
+                float? longitude = null;
+                if (!reader.IsDBNull(reader.GetOrdinal("Longitude")))
+                {
+                    longitude = (float)reader.GetDouble(reader.GetOrdinal("Longitude"));
+                }
+
+                resultBuilder.AppendLine($"\"child{reader.GetInt32(reader.GetOrdinal("ChildId"))}\": {{"); // Start of child object with unique key
+
+                resultBuilder.AppendLine($"\"mainImagePath\": \"{reader.GetString(reader.GetOrdinal("mainImagePath"))}\",");
+                resultBuilder.AppendLine($"\"kinshipT\": \"{reader.GetString(reader.GetOrdinal("kinshipT"))}\",");
+                resultBuilder.AppendLine($"\"childName\": \"{reader.GetString(reader.GetOrdinal("childName"))}\",");
+                resultBuilder.AppendLine($"\"gender\": \"{reader.GetString(reader.GetOrdinal("Gender"))}\",");
+                resultBuilder.AppendLine($"\"yearOfBirth\": {reader.GetInt32(reader.GetOrdinal("YearOfBirth"))},");
+                resultBuilder.AppendLine($"\"boundry\": {reader.GetInt32(reader.GetOrdinal("Boundry"))},");
+                resultBuilder.AppendLine($"\"parentnumber\": \"{reader.GetInt32(reader.GetOrdinal("parentnumber"))}\",");
+                resultBuilder.AppendLine($"\"isConnect\": \"{reader.GetString(reader.GetOrdinal("isConnect"))}\",");
+                resultBuilder.AppendLine($"\"latitude\": {(latitude.HasValue ? latitude.ToString() : "null")},");
+                resultBuilder.AppendLine($"\"longitude\": {(longitude.HasValue ? longitude.ToString() : "null")}");
+
+                resultBuilder.AppendLine("}},"); // End of child object
+            }
+
+            conn.Close();
+
+            if (resultBuilder[resultBuilder.Length - 3] == ',')
+            {
+                resultBuilder.Remove(resultBuilder.Length - 3, 1); // Remove the trailing comma
+            }
+
+            resultBuilder.AppendLine("}"); // End of JSON object
+
+            if (resultBuilder.Length > 2)
+            {
+                return Ok(resultBuilder.ToString());
+            }
+
+            return NotFound("Link your children");
+        }
+
+        //to get children information and display result in home list 
+        [HttpGet("testChildHome/{UserID}")]
+        public ActionResult<IEnumerable<object>> testGetchild(int UserID)
         {
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
@@ -160,7 +225,7 @@ namespace FalaKAPP.Controllers
             return NotFound("Link your children");
         }
 
-/*
+
         [HttpPut("updateChildLocation")]
         public IActionResult updateChildLocation(int childID, float Longitude , float Latitude)
         {
@@ -185,7 +250,7 @@ namespace FalaKAPP.Controllers
                 }
             }
         }
-*/
+
 
 
     }
