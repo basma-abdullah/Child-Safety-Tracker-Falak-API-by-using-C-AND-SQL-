@@ -333,8 +333,8 @@ namespace FalaKAPP.Controllers
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType, AllowTorack) " +
-                             "VALUES (@PersonInChargeID, @ChildID, @app, @device, 1, @TrackingActiveType, 1)";
+                string sql = "INSERT INTO FollowChilds (PersonInChargeID, ChildID, TrackByApp, TrackByDevice, HasCard, TrackingActiveType) " +
+                             "VALUES (@PersonInChargeID, @ChildID, @app, @device, 1, @TrackingActiveType)";
 
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
@@ -390,6 +390,50 @@ namespace FalaKAPP.Controllers
             else
             {
                 bool isinsert = insertHasCardMethod(childID, userID , true, false, "app");
+                if (isinsert)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+
+        }
+
+
+        //insert or update AppMethod in link child         
+        public static bool insertorupdateDeviceMethod(int childID, int userID)
+        {
+            bool isfollow = isFollow(childID, userID);
+            if (isfollow)
+            {
+                using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+                {
+                    conn.Open();
+                    string sql = "UPDATE FollowChilds SET TrackByDevice = @Device, TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND PersonInChargeID =@MainPersonInChargeID ";
+                    using (SqlCommand command = new SqlCommand(sql, conn))
+                    {
+                        command.Parameters.AddWithValue("@ChildID", childID);
+                        command.Parameters.AddWithValue("@MainPersonInChargeID", userID);
+                        command.Parameters.AddWithValue("@Device", 1);
+                        command.Parameters.AddWithValue("@TrackingActiveType", "device");
+                        int affectrow = command.ExecuteNonQuery();
+                        if (affectrow > 0)
+                        {
+                            return true;
+                        }
+                        else { return false; }
+                    }
+
+
+                }
+
+            }
+            else
+            {
+                bool isinsert = insertHasCardMethod(childID, userID, false, true, "device");
                 if (isinsert)
                 {
                     return true;
