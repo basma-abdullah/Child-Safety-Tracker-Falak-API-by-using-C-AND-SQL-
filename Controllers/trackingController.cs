@@ -9,10 +9,9 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class trackingController : ControllerBase
     {
-        //child device :
+        //child device location and tracking :
 
-        //for future we have to notify parent (alarm) with child phone charge in %
-        //when check child device have more than 3 charge the state will be update yes for more than 3% and no for less
+        //when check child device have more than 3% charge the state will be update yes for more than 3% and no for less
         [HttpPut("updateChildButtery")]
         public IActionResult UpdateChildButtery(int childID, string enabletrackingstate)
         {
@@ -49,44 +48,13 @@ namespace FalaKAPP.Controllers
             }
         }
 
-        //complete for next API 
-        public static List<int> checkForTracking(int childID)
-        {
-            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
-            {
-                conn.Open();
-                string sql = "select t.TrackingChildMasterID from FollowChilds f , TrackingChildMaster t where t.LinkChildsID = f.LinkChildsID AND f.Childid = @childID AND ParentReaction = 'open' ";
-                using (var command = new SqlCommand(sql, conn))
-                {
-                    command.Parameters.AddWithValue("@childID", childID);
-                    var resultList = new List<int>();
 
-                    SqlDataReader rowsAffected = command.ExecuteReader();
-                    if (rowsAffected.HasRows)
-                    {
-                        while (rowsAffected.Read())
-                        {
-
-                            int id = rowsAffected.GetInt32(rowsAffected.GetOrdinal("TrackingChildMasterID"));
-                            resultList.Add(id);
-                        }
-
-                        return resultList;
-                    }
-                    else
-                    {
-                        return null;
-                    }
-                }
-
-            }
-
-        }
-
-
-        // in child device will be call every minute when isconnect as enable and add location for each row has an open parent reaction when thier is no reaction will not update it 
-        [HttpPost("Updatelastlocation")]
-        public IActionResult Updateandinsertlastlocation(int childID, decimal Latitude, decimal Longitude)
+        //update is connect then add location to volunteerchild table
+        //update child location each 1 minute will call this API 
+        //if invoke from child mobile the modeltype will be a app
+        //if invoke from bracelet or OQ device the modeltype will be tracker
+        [HttpPost("UpdateandinsertlastlocationforChild")]
+        public IActionResult UpdateandinsertlastlocationforChild(int childID, decimal Latitude, decimal Longitude, string DevicesuppliedType)
         {
             DateTime currentDateTime = DateTime.Now;
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
@@ -94,53 +62,26 @@ namespace FalaKAPP.Controllers
                 conn.Open();
                 using (SqlTransaction transaction = conn.BeginTransaction())
                 {
-                    List<int> trackingID = checkForTracking(childID);
-                    if (trackingID != null)
-                    {
+
+                    string insertQuery = "INSERT INTO volunteerHistoricalLocation (PersonID, dateTime, Longitude,Latitude , DevicesuppliedType) VALUES (@childID, @dateTime, @Longitude, @Latitude , @DevicesuppliedType)";
+                    SqlCommand insertCommand = new SqlCommand(insertQuery, conn, transaction);
+                    insertCommand.Parameters.AddWithValue("@childID", childID);
+                    insertCommand.Parameters.AddWithValue("@dateTime", currentDateTime);
+                    insertCommand.Parameters.AddWithValue("@Longitude", Longitude);
+                    insertCommand.Parameters.AddWithValue("@Latitude", Latitude);
+                    insertCommand.Parameters.AddWithValue("@DevicesuppliedType", DevicesuppliedType);
+                    insertCommand.ExecuteNonQuery();
 
 
-                        string insertQuery = "INSERT INTO TrackingChildPlaceDetail (TrackingChildMasterID, DateTimeLoc, Latitude, Longitude) VALUES (@TrackingChildMasterID, @DateTime12, @Latitude, @Longitude)";
-                        SqlCommand insertCommand = new SqlCommand(insertQuery, conn, transaction);
+                    string sql = "UPDATE PersonChilds SET Longitude = @Longitude , Latitude = @Latitude , VoulnteerChildLocationID = (select TOP 1 volunteerLocationId from volunteerHistoricalLocation where PersonID = @ChildID ORDER BY dateTime DESC)  WHERE ChildID = @ChildID";
+                    SqlCommand command = new SqlCommand(sql, conn, transaction);
+                    command.Parameters.AddWithValue("@ChildID", childID);
+                    command.Parameters.AddWithValue("@Longitude", Longitude);
+                    command.Parameters.AddWithValue("@Latitude", Latitude);
+                    command.ExecuteNonQuery();
+                    transaction.Commit();
 
-                        foreach (int trackingMasterID in trackingID)
-                        {
-                            insertCommand.Parameters.Clear();
-                            insertCommand.Parameters.AddWithValue("@DateTime12", currentDateTime);
-                            insertCommand.Parameters.AddWithValue("@Longitude", Longitude);
-                            insertCommand.Parameters.AddWithValue("@Latitude", Latitude);
-                            insertCommand.Parameters.AddWithValue("@TrackingChildMasterID", trackingMasterID);
-                            insertCommand.ExecuteNonQuery();
-                        }
-
-                        string updateQuery2 = "UPDATE TrackingChildMaster SET LastChildLocationLongitude = @LastLocationLongitude, LastChildLocationLatitude = @LastLocationLatitude , EndTrackingTime = @EndTrackingTime WHERE TrackingChildMasterID = @TrackingChildMasterID";
-                        SqlCommand command2 = new SqlCommand(updateQuery2, conn, transaction);
-
-                        foreach (int trackingMasterID in trackingID)
-                        {
-                            command2.Parameters.Clear();
-                            command2.Parameters.AddWithValue("@LastLocationLatitude", Latitude);
-                            command2.Parameters.AddWithValue("@LastLocationLongitude", Longitude);
-                            command2.Parameters.AddWithValue("@EndTrackingTime", currentDateTime);
-                            command2.Parameters.AddWithValue("@TrackingChildMasterID", trackingMasterID);
-                            command2.ExecuteNonQuery();
-                        }
-
-                        string updateQuery3 = "UPDATE PersonChilds SET Longitude = @LastLocationLongitude, Latitude = @LastLocationLatitude  WHERE ChildID = @ChildID";
-                        SqlCommand command3 = new SqlCommand(updateQuery3, conn, transaction);
-                        command3.Parameters.AddWithValue("@LastLocationLatitude", Latitude);
-                        command3.Parameters.AddWithValue("@LastLocationLongitude", Longitude);
-                        command3.Parameters.AddWithValue("@ChildID", childID);
-                        command3.ExecuteNonQuery();
-
-                        transaction.Commit();
-
-                        return Ok();
-
-                    }
-                    else
-                    {
-                        return BadRequest();
-                    }
+                    return Ok();
 
                 }
             }
@@ -149,59 +90,6 @@ namespace FalaKAPP.Controllers
 
 
         //parent tracking :
-        //start track child when click enable button in child from list 
-        [HttpPost("insertnewmastartrack")]
-        public IActionResult insertnewmastartrack(int userID, int childID)
-        {
-            DateTime currentDateTime = DateTime.Now;
-            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
-            {
-                conn.Open();
-                using (SqlTransaction transaction = conn.BeginTransaction())
-                {
-                    string updateQuery2 = "insert into TrackingChildMaster(LinkChildsID , StartTrackingDate , StartChildLocationlong , StartChildLocationlat) values ((select LinkChildsID from FollowChilds where PersonInChargeID = @userID AND ChildId = @childID) ,@startTrackingTime , (select Longitude from PersonChilds where  ChildId = @childID ) , (select Latitude from PersonChilds where  ChildId = @childID ) )";
-                    SqlCommand command2 = new SqlCommand(updateQuery2, conn, transaction);
-                    command2.Parameters.Clear();
-                    command2.Parameters.AddWithValue("@userID", userID);
-                    command2.Parameters.AddWithValue("@childID", childID);
-                    command2.Parameters.AddWithValue("@startTrackingTime", currentDateTime);
-                    command2.ExecuteNonQuery();
-                    transaction.Commit();
-                    return Ok();
-                }
-            }
-        }
-
-        //tracking child via app ()
-
-
-        //tracking child via tracker
-
-
-        //update parent reaction when close the track (when click close button in home then child will disappear from map ) :
-        [HttpPut("updateparentreaction")]
-        public IActionResult updateparentreaction(int userID,int childID)
-        {
-            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
-            {
-                conn.Open();
-                string sql = "UPDATE TrackingChildMaster SET ParentReaction = 'close'  WHERE LinkChildsID = (select LinkChildsID from FollowChilds where PersonInChargeID = @userID AND ChildId = @childID)";
-                SqlCommand command = new SqlCommand(sql, conn);
-                command.Parameters.AddWithValue("@childID", childID);
-                command.Parameters.AddWithValue("@userID", userID);
-
-                int rowsAffected = command.ExecuteNonQuery();
-
-                if (rowsAffected > 0)
-                {
-                    return Ok();
-                }
-                else
-                {
-                    return BadRequest();
-                }
-            }
-        }
 
         //update parent location each 1 minute will call this API 
         [HttpPost("Updateandinsertlastlocationforparent")]
@@ -242,8 +130,34 @@ namespace FalaKAPP.Controllers
             }
         }
 
+        // this the enable or disabke button in home for start track child or end tracking  :
+        [HttpPut("updateparentreaction")]
+        public IActionResult updateparentreaction(int userID,int childID , string AllowTorack)
+        {
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                conn.Open();
+                string sql = "UPDATE FollowChilds SET AllowTorack =@AllowTorack WHERE LinkChildsID = (select LinkChildsID from FollowChilds where PersonInChargeID = @userID AND ChildId = @childID)";
+                SqlCommand command = new SqlCommand(sql, conn);
+                command.Parameters.AddWithValue("@AllowTorack", AllowTorack);
+                command.Parameters.AddWithValue("@childID", childID);
+                command.Parameters.AddWithValue("@userID", userID);
 
-        //to get child hestory in history page 
+                int rowsAffected = command.ExecuteNonQuery();
+
+                if (rowsAffected > 0)
+                {
+                    return Ok();
+                }
+                else
+                {
+                    return BadRequest();
+                }
+            }
+        }
+
+
+        //to get child history in history page 
         [HttpGet("trackinghistory/{userID}/{childID}")]
         public ActionResult<IEnumerable<object>> GetTrackingHistory(int userID, int childID)
         {
@@ -251,13 +165,11 @@ namespace FalaKAPP.Controllers
             conn.Open();
 
             string sql = @"
-                            SELECT TOP 30  trackDetail.Longitude, trackDetail.Latitude
-                            FROM FollowChilds AS follow
-                            JOIN TrackingChildMaster AS trackMaster ON follow.LinkChildsID = trackMaster.LinkChildsID
-                            JOIN TrackingChildPlaceDetail AS trackDetail ON trackMaster.TrackingChildMasterID = trackDetail.TrackingChildMasterID
-                            WHERE follow.PersonInChargeID = @UserID AND follow.ChildID = @ChildID
-                            ORDER BY trackDetail.DateTimeloc DESC";
-
+                            SELECT TOP 30 trackDetail.Longitude, trackDetail.Latitude
+                            FROM volunteerHistoricalLocation AS trackDetail , FollowChilds as fc
+                            where fc.PersonInChargeID =@userID  and fc.ChildId =@childID and ChildId = PersonID and  fc.TrackingActiveType = trackDetail.DevicesuppliedType
+                            ORDER BY trackDetail.dateTime DESC";
+            
             using (var command = new SqlCommand(sql, conn))
             {
                 command.Parameters.AddWithValue("@UserID", userID);

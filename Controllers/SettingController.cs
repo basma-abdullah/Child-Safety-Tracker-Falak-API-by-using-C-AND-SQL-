@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using FalaKAPP.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data.SqlClient;
 
@@ -13,14 +14,13 @@ namespace FalaKAPP.Controllers
         [HttpPut("changeEmailAndName/{UserID}")]
         public IActionResult changeEmailAndName(int UserID, string Email, string FullName)
         {
-            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
-                conn.Open();
                 Boolean isexist = DatabaseSettings.isIdExists(UserID);
-                if (isexist)
+                if (isexist == true)
                 {
+                    conn.Open();
                     string sql = "UPDATE PersonUsers SET FullName = @FullName, Email = @Email WHERE UserID = @UserID";
-
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
                         // Add parameters and their values
@@ -28,11 +28,9 @@ namespace FalaKAPP.Controllers
                         cmd.Parameters.AddWithValue("@Email", Email);
                         cmd.Parameters.AddWithValue("@UserID", UserID);
 
-                        conn.Open();
                         int affectedRows = cmd.ExecuteNonQuery();
                         if (affectedRows > 0)
                         {
-                            conn.Close();
                             return Ok("successfully updated");
                         }
                         else
@@ -46,13 +44,14 @@ namespace FalaKAPP.Controllers
                     return NotFound("user not found");
                 }
             }
+
         }
 
         //change phonenumber 
         [HttpPut("changePhoneNumber/{UserID}")]
         public IActionResult changePhoneNumber(int UserID, string PhoneNumber)
         {
-            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
 
@@ -63,12 +62,12 @@ namespace FalaKAPP.Controllers
 
                     using (SqlCommand cmd = new SqlCommand(sql, conn))
                     {
+
                         // Add parameters and their values
                         cmd.Parameters.AddWithValue("@PhoneNumber", PhoneNumber);
                         cmd.Parameters.AddWithValue("@Username", PhoneNumber);
                         cmd.Parameters.AddWithValue("@UserID", UserID);
 
-                        conn.Open();
                         int affectedRows = cmd.ExecuteNonQuery();
                         if (affectedRows > 0)
                         {
@@ -86,7 +85,9 @@ namespace FalaKAPP.Controllers
                     return NotFound("user not found");
                 }
             }
-        }
+        } 
+    
+
 
 
         //reset password API 
@@ -160,12 +161,12 @@ namespace FalaKAPP.Controllers
             SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
             conn.Open();
 
-            string sql = "SELECT PC.ChildID, CN.FullName, FC.TrackingActiveType"+
-                         "FROM PersonChilds PC"+
-                         "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID"+
-                         "JOIN PersonUsers CN ON PC.ChildID = CN.UserID"+
-                         "JOIN FollowChilds FC ON PC.ChildID = FC.ChildID"+
-                         "WHERE PC.MainPersonInChargeID = @UserID";
+            string sql = "SELECT PC.ChildID, CN.FullName, FC.TrackingActiveType "+
+                         "FROM PersonChilds PC "+
+                         "JOIN PersonUsers PU ON PC.MainPersonInChargeID = PU.UserID "+
+                         "JOIN PersonUsers CN ON PC.ChildID = CN.UserID "+
+                         "JOIN FollowChilds FC ON PC.ChildID = FC.ChildID "+
+                         "WHERE PC.MainPersonInChargeID = @UserID ";
 
             SqlCommand command = new SqlCommand(sql, conn);
             command.Parameters.AddWithValue("@UserID", UserID);
@@ -199,18 +200,17 @@ namespace FalaKAPP.Controllers
 
 
 
-
         //to get a list of all available tracking method for one child 
-        [HttpGet("TrackingOption/{UserID,childID}")]
-        public static List<string> AvailableTrackingType(int userID ,int childID)
+        [HttpGet("TrackingOption")]
+        public ActionResult<IEnumerable<string>> AvailableTrackingType(int userID, int childID)
         {
             List<string> trackingOption = new List<string>();
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "SELECT FC.TrackByApp, FC.TrackByDevice FROM FollowChilds FC " +
-                             "INNER JOIN PersonChilds PC ON FC.ChildId = PC.ChildID " +
-                             "WHERE PC.ChildID = @ChildID AND PC.MainPersonInChargeID = @UserID";
+                string sql = "SELECT FC.TrackByApp, FC.TrackByDevice " +
+                             "FROM FollowChilds FC , PersonChilds PC " +
+                             "WHERE FC.ChildId = PC.ChildID  AND FC.PersonInChargeID = @UserID and FC.ChildId = @ChildID";
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
                     command.Parameters.AddWithValue("@ChildID", childID);
@@ -219,29 +219,30 @@ namespace FalaKAPP.Controllers
                     SqlDataReader reader = command.ExecuteReader();
                     if (reader.Read())
                     {
-                        bool app = reader.GetBoolean(reader.GetOrdinal("TrackByApp"));
-                        bool device = reader.GetBoolean(reader.GetOrdinal("TrackByDevice"));
+                        string app = reader.GetString(reader.GetOrdinal("TrackByApp"));
+                        string device = reader.GetString(reader.GetOrdinal("TrackByDevice"));
 
-                        if (app && device)
+                        if (app == "1" && device == "1")
                         {
                             trackingOption.Add("app");
                             trackingOption.Add("device");
                         }
-                        else if (app && !device)
+                        else if (app == "1" && device == "0")
                         {
                             trackingOption.Add("app");
                         }
-                        else if (!app && device)
+                        else if (app == "0" && device == "1")
                         {
                             trackingOption.Add("device");
                         }
                     }
+                    trackingOption.Add("hascard");
                 }
             }
 
-            trackingOption.Add("hascard");
-            return trackingOption;
+            return Ok(trackingOption);
         }
+
 
         [HttpPut("updateDefualtTrackingMethod")]
         public IActionResult updateDefualtTrackingMethod(int UserID , int ChildID , string TrackingActiveType)
@@ -249,7 +250,7 @@ namespace FalaKAPP.Controllers
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
             {
                 conn.Open();
-                string sql = "UPDATE FollowChilds SET TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND PersonInChargeID =@MainPersonInChargeID ";
+                string sql = "UPDATE FollowChilds SET TrackingActiveType = @TrackingActiveType WHERE ChildID = @ChildID AND PersonInChargeID =@PersonInChargeID ";
                 using (SqlCommand command = new SqlCommand(sql, conn))
                 {
                     command.Parameters.AddWithValue("@PersonInChargeID", UserID);

@@ -19,7 +19,7 @@ namespace FalaKAPP.Controllers
             {
                 DateTime currentDateTime = DateTime.Now;
                 connection.Open();
-                string query = "INSERT INTO FindLostChild(responesTitle, HelperID, FindLostChildDate, ApproximateAge, responseImagePath, Comments) VALUES (@responesTitle, @HelperID, @FindLostChildDate, @ApproximateAge, @responseImagePath, @Comments)";
+                string query = "INSERT INTO FindLostChild(responesTitle, HelperID, FindLostChildDate, ApproximateAge, responseImagePath, Comments ,LocationID) VALUES (@responesTitle, @HelperID, @FindLostChildDate, @ApproximateAge, @responseImagePath, @Comments , (select VoulnteerChildLocationID from PersonUsers where UserID = @UserID ))";
                 SqlCommand comm = new SqlCommand(query, connection);
 
                 // Check if the responseImagePath and model state are valid
@@ -46,6 +46,7 @@ namespace FalaKAPP.Controllers
                     comm.Parameters.AddWithValue("@ApproximateAge", respones.ApproximateAge);
                     comm.Parameters.AddWithValue("@responseImagePath", DatabaseSettings.ImageDirectory_ReadPath + "/" + imageFileName);
                     comm.Parameters.AddWithValue("@Comments", respones.Comments);
+                    comm.Parameters.AddWithValue("@UserID", respones.UserID);
 
                     int affectedRow = comm.ExecuteNonQuery();
                     if (affectedRow > 0)

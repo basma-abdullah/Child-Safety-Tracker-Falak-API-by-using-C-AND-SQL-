@@ -21,7 +21,7 @@ namespace FalaKAPP.Controllers
     public class UserController : ControllerBase
     {
 
-        //login for parent and child
+        //login for parent and child parent username(phonenumber , child username(email))
         [HttpGet("login/{Username},{Password}")]
         public ActionResult<PersonUsers> login(string Username, string Password)
         {
@@ -153,132 +153,6 @@ namespace FalaKAPP.Controllers
 
 
         //add child APIs either by his phone or by his parent phone:
-
-        // This web API will be called when we create a child with a card by his parent phone (generate QRCODE button)
-        [HttpPost("addParentChild")]
-        public ActionResult AddParentChild(IFormFile MainImagePath, [FromForm] string username, [FromForm] string UserType, [FromForm] string FullName, [FromForm] string Password, [FromForm] int? PhoneNumber, [FromForm] string Gender, [FromForm] string Email, [FromForm] string usernameType,
-           [FromForm] int YearOfBirth, [FromForm] string kinshipT, [FromForm] int MainPersonInChargeID)
-        {
-       
-            // Create the child user
-            PersonUsers userTemp = new PersonUsers()
-            {
-                Username = username,
-                UserType = UserType,
-                FullName = FullName,
-                Password = Password,
-                PhoneNumber = PhoneNumber,
-                Gender = Gender,
-                Email = Email,
-                UsernameType = usernameType
-            };
-
-            ActionResult<PersonUsers> user = signup(userTemp);
-            int useridforchild = DatabaseSettings.getID(username);
-            if (user != null)
-            {
-                // Check if the MainImagePath and model state are valid
-                if (MainImagePath != null && ModelState.IsValid)
-                {
-
-
-                    // Generate the image file name
-                    string imageFileName = useridforchild.ToString();
-
-                    //add extension to image
-                    imageFileName += Path.GetExtension(MainImagePath.FileName).ToLower();
-
-                    // Get the image folder path
-                    string imageFolderPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(),DatabaseSettings.ImageDirectory_AddPath));
-
-                    // Save the uploaded image to the specified file path
-                    using (var fileStream = new FileStream(Path.Combine(imageFolderPath,imageFileName), FileMode.Create))
-
-                    MainImagePath.CopyToAsync(fileStream);
-
-    
-
-
-                    //generate link qrcode for child to be use later on link process
-                    string linkqrcode = QrCodeController.GenerateAndStoreQRCode(useridforchild);
-
-                    //generate link number for child to be use later on link process
-                    int verficationCode = GetRandomNumber();
-
-
-
-
-                    // Create the child object
-                    PersonChilds childTemp = new PersonChilds()
-                    {
-                        ChildID = useridforchild,
-                        YearOfBirth = YearOfBirth,
-                        MainImagePath = DatabaseSettings.ImageDirectory_ReadPath + "/" + imageFileName,
-
-                    KinshipT = kinshipT,
-                        MainPersonInChargeID = MainPersonInChargeID,
-                        QRCodeLink = linkqrcode,
-                        VerificationCode = verficationCode,
-                    };
-
-
-                    // Add the child to personchild
-                    ActionResult<PersonChilds> child = AddChild(childTemp);
-
-                    if (child.Value != null)
-                    {
-                        //insert in follow child account
-                        bool insertfollow = SettingController.insertHasCardMethod(useridforchild, MainPersonInChargeID , false ,false,"hascard");
-                        if (insertfollow)
-                        {
-                            return Ok("Child created successfully");
-                        }
-                        else
-                        {
-                            return BadRequest("Error: Child account not created");
-                        }
-                    }
-                    else
-                    {
-                        return BadRequest("Error: Child account not created");
-                    }
-                }
-                else
-                {
-                    return BadRequest("Error: Invalid image or model state");
-                }
-            }
-
-            return BadRequest("Error: User not created");
-        }
-
-
-
-        // Add the child method to add child opject to personchild table
-        public static ActionResult<PersonChilds> AddChild(PersonChilds child)
-        {
-
-            SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn);
-            if (conn.State != ConnectionState.Open)
-            {
-                conn.Open();
-            }
-            string sql = "insert into PersonChilds(ChildID , YearOfbirth, mainImagePath,VerificationCode , QRCodeLink, kinshipT, MainPersonInChargeID)values ('" + child.ChildID + "', '" + child.YearOfBirth + "', '" + child.MainImagePath + "', '" + child.VerificationCode + "', '" + child.QRCodeLink + "', '" + child.KinshipT + "', '" + child.MainPersonInChargeID + "')";
-            SqlCommand cmd = new SqlCommand(sql, conn);
-            int affectedrow = cmd.ExecuteNonQuery();
-            if (affectedrow > 0)
-            {
-                conn.Close();
-                return child;
-            }
-            else
-            {
-                conn.Close();
-                return null;
-
-            }
-
-        }
 
 
 

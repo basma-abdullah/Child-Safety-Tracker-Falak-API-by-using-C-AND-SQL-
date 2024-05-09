@@ -13,7 +13,7 @@ namespace FalaKAPP.Controllers
     [ApiController]
     public class filterController : ControllerBase
     {
-        [HttpGet ("filterByDate")]
+        [HttpGet("filterByDate")]
         public ActionResult<object> filterByDate(int UserID)
         {
             using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
@@ -32,17 +32,17 @@ namespace FalaKAPP.Controllers
                         {
                             var response = new
                             {
-                             // Retrieve the response information from the reader
-                             LostNotificationResponseID = reader.GetInt32(reader.GetOrdinal("LostNotificationResponseID")),
-                             LostNotificationRequestID = reader.GetInt32(reader.GetOrdinal("LostNotificationRequestID")),
-                             ResponseByPersonID = reader.GetInt32(reader.GetOrdinal("ResponseByPersonID")),
-                             ResponseStatus = reader.GetString(reader.GetOrdinal("ResponseStatus")),
-                             ResponseDate = reader.GetDateTime(reader.GetOrdinal("ResponseDate")),
-                             CurrentImagePath = reader.GetString(reader.GetOrdinal("CurrentImagePath")),
-                             accuracy = reader.GetInt32(reader.GetOrdinal("accuracy")),
-                             Comments = reader.GetString(reader.GetOrdinal("Comments")),
-                             FullName = reader.GetString(reader.GetOrdinal("FullName")),
-                             PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
+                                // Retrieve the response information from the reader
+                                LostNotificationResponseID = reader.GetInt32(reader.GetOrdinal("LostNotificationResponseID")),
+                                LostNotificationRequestID = reader.GetInt32(reader.GetOrdinal("LostNotificationRequestID")),
+                                ResponseByPersonID = reader.GetInt32(reader.GetOrdinal("ResponseByPersonID")),
+                                ResponseStatus = reader.GetString(reader.GetOrdinal("ResponseStatus")),
+                                ResponseDate = reader.GetDateTime(reader.GetOrdinal("ResponseDate")),
+                                CurrentImagePath = reader.GetString(reader.GetOrdinal("CurrentImagePath")),
+                                accuracy = reader.GetInt32(reader.GetOrdinal("accuracy")),
+                                Comments = reader.GetString(reader.GetOrdinal("Comments")),
+                                FullName = reader.GetString(reader.GetOrdinal("FullName")),
+                                PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
 
                             };
 
@@ -115,11 +115,11 @@ namespace FalaKAPP.Controllers
 
         }
 
-
+        //
 
         //create new response for specific request 
         [HttpPost("ResponseForSpecificRequest")]
-        public async Task<ActionResult<object>> ResponseForSpecificRequest(IFormFile CurrentImagePath, [FromForm] int LostNotificationRequestID, [FromForm]  int UserID,[FromForm] string ResponseStatus, [FromForm] string Comments , [FromForm] int accuracy)
+        public async Task<ActionResult<object>> ResponseForSpecificRequest(IFormFile CurrentImagePath, [FromForm] int LostNotificationRequestID, [FromForm] int UserID, [FromForm] string ResponseStatus, [FromForm] string Comments, [FromForm] int accuracy)
         {
             DateTime currentDateTime = DateTime.Now;
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
@@ -153,7 +153,7 @@ namespace FalaKAPP.Controllers
                     comm.Parameters.AddWithValue("@CurrentImagePath", DatabaseSettings.ImageDirectory_ReadPath + "/" + imageFileName);
                     comm.Parameters.AddWithValue("@accuracy", accuracy);
                     comm.Parameters.AddWithValue("@Comments", Comments);
-                    
+
 
 
 
@@ -176,16 +176,16 @@ namespace FalaKAPP.Controllers
 
 
 
-       [HttpGet("usersNearChild/{childId}")]
-        public ActionResult<IEnumerable<object>> GetRequestsNearUser(int childId)
+        [HttpGet("GetRequestsNearUser/{UserID}")]
+        public ActionResult<IEnumerable<object>> GetRequestsNearUser(int UserID)
         {
-            // Retrieve the child's location from the 'personchild' table
+            // Retrieve the user's location from the 'personusers' table
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
             {
                 connection.Open();
-                string getChildLocationQuery = "SELECT Longitude, Latitude FROM PersonUsers WHERE UserID = @ChildID";
+                string getChildLocationQuery = "SELECT Longitude, Latitude FROM PersonUsers WHERE UserID = @UserID";
                 SqlCommand getChildLocationCommand = new SqlCommand(getChildLocationQuery, connection);
-                getChildLocationCommand.Parameters.AddWithValue("@ChildID", childId);
+                getChildLocationCommand.Parameters.AddWithValue("@UserID", UserID);
 
                 using (SqlDataReader reader = getChildLocationCommand.ExecuteReader())
                 {
@@ -197,10 +197,12 @@ namespace FalaKAPP.Controllers
 
                         // Find requests near the child's location within 30 meters
                         string getRequestsNearChildQuery = "SELECT LRQ.LostNotificationRequestID, LRQ.requestTitle, LRQ.mainPersonInChargeID, " +
-                            "LRQ.RequestLostNotificationDate, LRQ.NotificationStatus, LRQ.Comments " +
-                            "FROM LostNotificationRequest LRQ " +
-                            "JOIN volunteerHistoricalLocation v ON LRQ.LastLocationId = v.volunteerLocationId " +
-                            "WHERE SQRT(POWER(v.Longitude - @UserLongitude, 2) + POWER(v.Latitude - @UserLatitude, 2)) <= 0.0063"; // 0.0003 degrees is approximately 30 meters
+                                                           "LRQ.RequestLostNotificationDate, LRQ.NotificationStatus, LRQ.Comments, PU.PhoneNumber, PC.MainImagePath " +
+                                                           "FROM LostNotificationRequest LRQ " +
+                                                           "JOIN volunteerHistoricalLocation v ON LRQ.LastLocationId = v.volunteerLocationId " +
+                                                           "JOIN PersonUsers PU ON LRQ.mainPersonInChargeID = PU.UserID " +
+                                                           "JOIN PersonChilds PC ON PC.ChildID = LRQ.ChildID " +
+                                                           "WHERE SQRT(POWER(v.Longitude - @UserLongitude, 2) + POWER(v.Latitude - @UserLatitude, 2)) <= 0.0135";// 0.0135 degrees is approximately 1500 meters
 
                         SqlCommand getRequestsNearChildCommand = new SqlCommand(getRequestsNearChildQuery, connection);
                         getRequestsNearChildCommand.Parameters.AddWithValue("@UserLongitude", userLongitude);
@@ -219,7 +221,10 @@ namespace FalaKAPP.Controllers
                                     mainPersonInChargeID = Convert.ToInt32(requestReader["mainPersonInChargeID"]),
                                     RequestLostNotificationDate = Convert.ToDateTime(requestReader["RequestLostNotificationDate"]),
                                     NotificationStatus = Convert.ToString(requestReader["NotificationStatus"]),
-                                    Comments = Convert.ToString(requestReader["Comments"])
+                                    Comments = Convert.ToString(requestReader["Comments"]),
+                                    PhoneNumber = Convert.ToInt32(requestReader["PhoneNumber"]),
+                                    MainImagePath = Convert.ToString(requestReader["MainImagePath"]),
+
                                 };
 
                                 requestList.Add(request);
@@ -243,6 +248,138 @@ namespace FalaKAPP.Controllers
             }
         }
 
+
+        [HttpGet("GetResponse_Lostchild_sNearUser/{UserID}")]
+        public ActionResult<IEnumerable<object>> GetResponse_Lostchild_sNearUser(int UserID)
+        {
+            // Retrieve the user's location from the 'personusers' table
+            using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                connection.Open();
+                string getChildLocationQuery = "SELECT Longitude, Latitude FROM PersonUsers WHERE UserID = @UserID";
+                SqlCommand getChildLocationCommand = new SqlCommand(getChildLocationQuery, connection);
+                getChildLocationCommand.Parameters.AddWithValue("@UserID", UserID);
+
+                using (SqlDataReader reader = getChildLocationCommand.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        double userLongitude = Convert.ToDouble(reader["Longitude"]);
+                        double userLatitude = Convert.ToDouble(reader["Latitude"]);
+                        reader.Close();
+
+                        // Find requests near the child's location within 30 meters
+                        string getRequestsNearChildQuery = "SELECT LRS.FindLostChildID , LRS.responesTitle, LRS.responseImagePath, " +
+                                                           "LRS.FindLostChildDate, LRS.NotificationStatus, LRS.Comments, LRS.ApproximateAge , PU.PhoneNumber " +
+                                                           "FROM LostNotificationResponse LRS " +
+                                                           "JOIN volunteerHistoricalLocation v ON LRS.LocationID = v.volunteerLocationId " +
+                                                           "JOIN PersonUsers PU ON LRS.HelperID = PU.UserID " +
+                                                           "WHERE SQRT(POWER(v.Longitude - @UserLongitude, 2) + POWER(v.Latitude - @UserLatitude, 2)) <= 0.0135";// 0.0135 degrees is approximately 1500 meters
+
+                        SqlCommand getRequestsNearChildCommand = new SqlCommand(getRequestsNearChildQuery, connection);
+                        getRequestsNearChildCommand.Parameters.AddWithValue("@UserLongitude", userLongitude);
+                        getRequestsNearChildCommand.Parameters.AddWithValue("@UserLatitude", userLatitude);
+
+                        List<object> requestList = new List<object>();
+
+                        using (SqlDataReader requestReader = getRequestsNearChildCommand.ExecuteReader())
+                        {
+                            while (requestReader.Read())
+                            {
+                                var request = new
+                                {
+                                    FindLostChildID = Convert.ToInt32(requestReader["FindLostChildID"]),
+                                    responesTitle = Convert.ToString(requestReader["responesTitle"]),
+                                    responseImagePath = Convert.ToInt32(requestReader["responseImagePath"]),
+                                    FindLostChildDate = Convert.ToDateTime(requestReader["FindLostChildDate"]),
+                                    NotificationStatus = Convert.ToString(requestReader["NotificationStatus"]),
+                                    Comments = Convert.ToString(requestReader["Comments"]),
+                                    ApproximateAge = Convert.ToInt32(requestReader["ApproximateAge"]),
+                                    PhoneNumber = Convert.ToInt32(requestReader["PhoneNumber"]),
+
+                                };
+
+                                requestList.Add(request);
+                            }
+                        }
+
+                        if (requestList.Count > 0)
+                        {
+                            return Ok(requestList);
+                        }
+                        else
+                        {
+                            return NotFound("No requests found near the specified child's location.");
+                        }
+                    }
+                    else
+                    {
+                        return NotFound("Child not found");
+                    }
+                }
+            }
+        }
+
+
+        //Get a history of responses to my requests
+        [HttpGet("GetHistoryOfResponses/{UserID}")]
+        public ActionResult<object> GetHistoryOfResponses(int UserID , int LostNotificationRequestID)
+        {
+            using (SqlConnection conn = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                string sql = " select LR.ResponseDate , LR.CurrentImagePath , LR.ResponseStatus , LR.Comments , Hel.PhoneNumber , Hel.FullName " +
+                             " from LostNotificationResponse LR , LostNotificationRequest LQ, PersonUsers Hel  " +
+                             " WHERE LQ.LostNotificationRequestID = @LostNotificationRequestID and LQ.LostNotificationRequestID = LR.LostNotificationRequestID and LQ.mainPersonInChargeID = @UserID and Hel.UserID = LR.ResponseByPersonID and LQ.NotificationStatus = 'received' ";
+                using (SqlCommand command = new SqlCommand(sql, conn))
+                {
+                    conn.Open();
+                    command.Parameters.AddWithValue("@UserID", UserID);
+                    command.Parameters.AddWithValue("@LostNotificationRequestID", LostNotificationRequestID);
+                    using (SqlDataReader reader = command.ExecuteReader())
+                    {
+                        List<object> responsesCaht = new List<object>();
+
+                        while (reader.Read())
+                        {
+                            var response = new
+
+                            {
+                                CurrentImagePath = reader.GetString(reader.GetOrdinal("CurrentImagePath")),
+                                ResponseStatus = reader.GetString(reader.GetOrdinal("ResponseStatus")),
+                                Comments = reader.GetString(reader.GetOrdinal("Comments")),
+                                PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber")),
+                                FullName = reader.GetString(reader.GetOrdinal("FullName")),
+                                ResponseDate = reader.GetDateTime(reader.GetOrdinal("ResponseDate")),
+
+                            };
+
+                            responsesCaht.Add(response);
+                        }
+
+                        if (responsesCaht.Count > 0)
+                        {
+                            return Ok(responsesCaht);
+                        }
+                        else
+                        {
+                            return NotFound("no response found");
+                        }
+                    }
+                }
+
+            }
+
+
+
+
+
+
+
+
+
+
+
+        }
     }
 }
 

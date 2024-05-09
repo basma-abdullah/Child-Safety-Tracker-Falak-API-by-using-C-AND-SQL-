@@ -16,6 +16,7 @@ namespace FalaKAPP.Models
         [Required] public string NotificationStatus { get; set; }
         public string Comments { get; set; }
 
+
     }
 
     public class FindLostChildInput
@@ -32,6 +33,7 @@ namespace FalaKAPP.Models
         public string NotificationStatus { get; set; }
 
         public string Comments { get; set; }
+        public int UserID { get; set; }
     }
 }
 
