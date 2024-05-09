@@ -10,7 +10,7 @@ namespace FalaKAPP.Models
             public int LostNotificationRequestID { get; set; }
             [Required]public string requestTitle {  get; set; }
             [Required]public int mainPersonInChargeID { get; set; }
-            [Required] public int TrackingChildMasterID { get; set; }
+            [Required] public int ChildID { get; set; }
             [Required] public DateTime RequestLostNotificationDate { get; set; }
             public int LastLocationId { get; set; }
             [Required] public string NotificationStatus { get; set; }

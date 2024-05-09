@@ -18,12 +18,12 @@ namespace FalaKAPP.Controllers
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
             {
                 connection.Open();
-                string query = "INSERT INTO LostNotificationRequest(RequestLostNotificationDate,requestTitle ,mainPersonInChargeID,TrackingChildMasterID,LastLocationId,NotificationStatus,Comments)VALUES(@RequestLostNotificationDate,@requestTitle , @mainPersonInChargeID,@TrackingChildMasterID,@LastLocationId,@NotificationStatus,@Comments)";
+                string query = "INSERT INTO LostNotificationRequest(RequestLostNotificationDate,requestTitle ,mainPersonInChargeID,ChildID,LastLocationId,NotificationStatus,Comments)VALUES(@RequestLostNotificationDate,@requestTitle , @mainPersonInChargeID,@ChildID,@LastLocationId,@NotificationStatus,@Comments)";
                 SqlCommand comm = new SqlCommand(query, connection);
                 comm.Parameters.AddWithValue("@RequestLostNotificationDate", request.RequestLostNotificationDate);
                 comm.Parameters.AddWithValue("@requestTitle", request.requestTitle);
                 comm.Parameters.AddWithValue("@mainPersonInChargeID", request.mainPersonInChargeID);
-                comm.Parameters.AddWithValue("@TrackingChildMasterID", request.TrackingChildMasterID);
+                comm.Parameters.AddWithValue("@ChildID", request.ChildID);
                 comm.Parameters.AddWithValue("@LastLocationId", request.LastLocationId);
                 comm.Parameters.AddWithValue("@NotificationStatus", request.NotificationStatus);
                 comm.Parameters.AddWithValue("@Comments", request.Comments);
@@ -42,6 +42,7 @@ namespace FalaKAPP.Controllers
 
             }       
         }
+
         //to return child information when click on specific child from list 
         [HttpGet ("GetChildInformationForRequest")]
         public ChildInformation GetChildInformationForRequest(int childId, int userId)
@@ -49,16 +50,14 @@ namespace FalaKAPP.Controllers
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
             {
                 connection.Open();
-                string query = $"SELECT c.ChildID, cn.FullName , c.MainImagePath , YEAR(GETDATE()) - c.YearOfBirth AS Age , p2.PhoneNumber ,  TM.TrackingChildMasterID , TD.TrackingChildPlaceDetailId " +
-                               $"FROM PersonUsers p,PersonUsers p2, PersonUsers cn, PersonChilds c, FollowChilds fc, TrackingChildMaster TM, TrackingChildPlaceDetail TD " +
+                string query = $"SELECT c.ChildID, cn.FullName , c.MainImagePath , YEAR(GETDATE()) - c.YearOfBirth AS Age , p2.PhoneNumber , c.VoulnteerChildLocationID " +
+                               $"FROM PersonUsers p,PersonUsers p2, PersonUsers cn, PersonChilds c, FollowChilds fc " +
                                $"WHERE c.ChildID = cn.UserID " +
                                $"AND c.ChildID = @childId " +
                                $"AND c.MainPersonInChargeID = @userId " +
                                $"AND p.userid = c.MainPersonInChargeID " +
                                $"AND fc.ChildId = @childId " +
-                               $"AND fc.LinkChildsID = TM.LinkChildsID " +
-                               $"AND c.MainPersonInChargeID = p2.UserID " +
-                               $"AND TM.TrackingChildMasterID = TD.TrackingChildMasterID ORDER BY TD.DateTime DESC";
+                               $"AND c.MainPersonInChargeID = p2.UserID ";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@childId", childId);
@@ -74,8 +73,7 @@ namespace FalaKAPP.Controllers
                             var MainImagePath = reader.GetString(reader.GetOrdinal("MainImagePath"));
                             var Age = reader.GetInt32(reader.GetOrdinal("Age"));
                             var PhoneNumber = reader.GetInt32(reader.GetOrdinal("PhoneNumber"));
-                            var TrackingChildMasterID = reader.GetInt32(reader.GetOrdinal("TrackingChildMasterID"));
-                            var TrackingChilPlaceDetailId = reader.GetInt32(reader.GetOrdinal("TrackingChildPlaceDetailId"));
+                            var VoulnteerChildLocationID = reader.GetInt32(reader.GetOrdinal("VoulnteerChildLocationID"));
 
                             return new ChildInformation
                             {
@@ -84,8 +82,8 @@ namespace FalaKAPP.Controllers
                                 MainImagePath = MainImagePath,
                                 Age = Age,
                                 phoneNumber = PhoneNumber,
-                                TrackingChildMasterID = TrackingChildMasterID ,
-                                TrackingChilPlaceDetailId = TrackingChilPlaceDetailId
+                                TrackingChildMasterID = VoulnteerChildLocationID
+                     
                             };
                         }
                     }
@@ -138,21 +136,67 @@ namespace FalaKAPP.Controllers
         }
 
 
+        //this API will return all user id near child in 30 meter to send request to them 
+        [HttpGet("usersNearChild/{childId}")]
+        public ActionResult<IEnumerable<int>> GetUsersNearChild(int childId)
+        {
+            // Retrieve the child's location from the 'personchild' table
+            using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                connection.Open();
+                string getChildLocationQuery = "SELECT Longitude, Latitude FROM PersonChilds WHERE ChildID = @childId";
+                SqlCommand getChildLocationCommand = new SqlCommand(getChildLocationQuery, connection);
+                getChildLocationCommand.Parameters.AddWithValue("@childId", childId);
+
+                using (SqlDataReader reader = getChildLocationCommand.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        double childLongitude = Convert.ToDouble(reader["Longitude"]);
+                        double childLatitude = Convert.ToDouble(reader["Latitude"]);
+
+                        // Find users near the child's location within 30 meters
+                        string getUsersNearChildQuery = "SELECT UserID FROM PersonUsers WHERE SQRT(POWER(Longitude - @childLongitude, 2) + POWER(Latitude - @childLatitude, 2)) <= 0.0063"; // 0.0003 degrees is approximately 30 meters
+
+                        SqlCommand getUsersNearChildCommand = new SqlCommand(getUsersNearChildQuery, connection);
+                        getUsersNearChildCommand.Parameters.AddWithValue("@childLongitude", childLongitude);
+                        getUsersNearChildCommand.Parameters.AddWithValue("@childLatitude", childLatitude);
+                        reader.Close();
+                        List<int> userIds = new List<int>();
+                        using (SqlDataReader userReader = getUsersNearChildCommand.ExecuteReader())
+                        {
+                            while (userReader.Read())
+                            {
+                                int userId = Convert.ToInt32(userReader["UserID"]);
+                                userIds.Add(userId);
+                            }
+                            userReader.Close();
+                        }
+
+                        return Ok(userIds);
+                    }
+                    else
+                    {
+                        return NotFound("Child not found");
+                    }
+                }
+            }
+        }
+
+
         [HttpGet("gethistoryrequest/{UserID}")]
         public ActionResult<Object> gethistoryrequest(int UserID)
         {
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
             {
                 connection.Open();
-                string query = $"SELECT DISTINCT cn.FullName, LNR.LostNotificationRequestID, LNR.requestTitle " +
-                               $"FROM PersonUsers p " +
-                               $"JOIN PersonChilds c ON p.UserID = c.ChildID " +
+                string query = $"SELECT DISTINCT cn.FullName, LN.LostNotificationRequestID, LN.requestTitle " +
+                               $"FROM LostNotificationRequest LN " +
+                               $"JOIN PersonChilds c ON LN.ChildID = c.ChildID " +
                                $"JOIN PersonUsers cn ON c.ChildID = cn.UserID " +
+                               $"JOIN PersonUsers p ON c.MainPersonInChargeID = p.UserID " +
                                $"JOIN FollowChilds fc ON fc.ChildId = c.ChildID " +
-                               $"JOIN TrackingChildMaster TM ON fc.LinkChildsID = TM.LinkChildsID " +
-                               $"JOIN TrackingChildPlaceDetail TD ON TM.TrackingChildMasterID = TD.TrackingChildMasterID " +
-                               $"JOIN LostNotificationRequest LNR ON LNR.TrackingChildMasterID = TM.TrackingChildMasterID " +
-                               $"WHERE c.MainPersonInChargeID = @UserID AND NotificationStatus = 'received'";
+                               $"WHERE LN.MainPersonInChargeID = @UserID AND LN.NotificationStatus = 'received'";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@UserID", UserID);
@@ -192,15 +236,13 @@ namespace FalaKAPP.Controllers
             using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
             {
                 connection.Open();
-                string query = $"SELECT DISTINCT cn.FullName, LNR.LostNotificationRequestID, LNR.requestTitle " +
-                               $"FROM PersonUsers p " +
-                               $"JOIN PersonChilds c ON p.UserID = c.ChildID " +
+                string query = $"SELECT DISTINCT cn.FullName, LN.LostNotificationRequestID, LN.requestTitle " +
+                               $"FROM LostNotificationRequest LN " +
+                               $"JOIN PersonChilds c ON LN.ChildID = c.ChildID " +
                                $"JOIN PersonUsers cn ON c.ChildID = cn.UserID " +
+                               $"JOIN PersonUsers p ON c.MainPersonInChargeID = p.UserID " +
                                $"JOIN FollowChilds fc ON fc.ChildId = c.ChildID " +
-                               $"JOIN TrackingChildMaster TM ON fc.LinkChildsID = TM.LinkChildsID " +
-                               $"JOIN TrackingChildPlaceDetail TD ON TM.TrackingChildMasterID = TD.TrackingChildMasterID " +
-                               $"JOIN LostNotificationRequest LNR ON LNR.TrackingChildMasterID = TM.TrackingChildMasterID " +
-                               $"WHERE c.MainPersonInChargeID = @UserID AND NotificationStatus != 'received'";
+                               $"WHERE LN.MainPersonInChargeID = @UserID AND LN.NotificationStatus != 'received'";
                 using (SqlCommand command = new SqlCommand(query, connection))
                 {
                     command.Parameters.AddWithValue("@UserID", UserID);

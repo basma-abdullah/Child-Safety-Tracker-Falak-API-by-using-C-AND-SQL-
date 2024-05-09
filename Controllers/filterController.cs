@@ -1,8 +1,11 @@
 ﻿using FalaKAPP.Models;
+using Humanizer;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using NuGet.Protocol.Plugins;
 using System.Data.SqlClient;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace FalaKAPP.Controllers
 {
@@ -110,6 +113,134 @@ namespace FalaKAPP.Controllers
 
             }
 
+        }
+
+
+
+        //create new response for specific request 
+        [HttpPost("ResponseForSpecificRequest")]
+        public async Task<ActionResult<object>> ResponseForSpecificRequest(IFormFile CurrentImagePath, [FromForm] int LostNotificationRequestID, [FromForm]  int UserID,[FromForm] string ResponseStatus, [FromForm] string Comments , [FromForm] int accuracy)
+        {
+            DateTime currentDateTime = DateTime.Now;
+            using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                connection.Open();
+                string query = "INSERT INTO LostNotificationResponse(LostNotificationRequestID, ResponseByPersonID, ResponseStatus, ResponseDate, Longitude,Latitude,CurrentImagePath, accuracy,Comments) VALUES  (@LostNotificationRequestID, @UserID, @ResponseStatus, @ResponseDate,(SELECT Longitude FROM PersonUsers WHERE UserID = @UserID),(SELECT Latitude FROM PersonUsers WHERE UserID = @UserID),@CurrentImagePath, @accuracy,@Comments) ";
+                SqlCommand comm = new SqlCommand(query, connection);
+
+                // Check if the responseImagePath and model state are valid
+                if (CurrentImagePath != null && ModelState.IsValid)
+                {
+                    // Generate the image file name
+                    string imageFileName = $"{DateTime.Now:yyyyMMddHH}_{new Random().Next(1000, 9999)}";
+
+                    // Add extension to image
+                    imageFileName += Path.GetExtension(CurrentImagePath.FileName).ToLower();
+
+                    // Get the image folder path
+                    string imageFolderPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), DatabaseSettings.ImageDirectory_AddPath));
+
+                    // Save the uploaded image to the specified file path
+                    using (var fileStream = new FileStream(Path.Combine(imageFolderPath, imageFileName), FileMode.Create))
+                    {
+                        await CurrentImagePath.CopyToAsync(fileStream);
+                    }
+
+                    comm.Parameters.AddWithValue("@LostNotificationRequestID", LostNotificationRequestID);
+                    comm.Parameters.AddWithValue("@UserID", UserID);
+                    comm.Parameters.AddWithValue("@ResponseStatus", ResponseStatus);
+                    comm.Parameters.AddWithValue("@ResponseDate", currentDateTime);
+                    comm.Parameters.AddWithValue("@CurrentImagePath", DatabaseSettings.ImageDirectory_ReadPath + "/" + imageFileName);
+                    comm.Parameters.AddWithValue("@accuracy", accuracy);
+                    comm.Parameters.AddWithValue("@Comments", Comments);
+                    
+
+
+
+                    int affectedRow = comm.ExecuteNonQuery();
+                    if (affectedRow > 0)
+                    {
+                        return Ok("successfully created");
+                    }
+                    else
+                    {
+                        return BadRequest("not created");
+                    }
+                }
+
+                return BadRequest("not created");
+            }
+        }
+
+
+
+
+
+       [HttpGet("usersNearChild/{childId}")]
+        public ActionResult<IEnumerable<object>> GetRequestsNearUser(int childId)
+        {
+            // Retrieve the child's location from the 'personchild' table
+            using (SqlConnection connection = new SqlConnection(DatabaseSettings.dbConn))
+            {
+                connection.Open();
+                string getChildLocationQuery = "SELECT Longitude, Latitude FROM PersonUsers WHERE UserID = @ChildID";
+                SqlCommand getChildLocationCommand = new SqlCommand(getChildLocationQuery, connection);
+                getChildLocationCommand.Parameters.AddWithValue("@ChildID", childId);
+
+                using (SqlDataReader reader = getChildLocationCommand.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        double userLongitude = Convert.ToDouble(reader["Longitude"]);
+                        double userLatitude = Convert.ToDouble(reader["Latitude"]);
+                        reader.Close();
+
+                        // Find requests near the child's location within 30 meters
+                        string getRequestsNearChildQuery = "SELECT LRQ.LostNotificationRequestID, LRQ.requestTitle, LRQ.mainPersonInChargeID, " +
+                            "LRQ.RequestLostNotificationDate, LRQ.NotificationStatus, LRQ.Comments " +
+                            "FROM LostNotificationRequest LRQ " +
+                            "JOIN volunteerHistoricalLocation v ON LRQ.LastLocationId = v.volunteerLocationId " +
+                            "WHERE SQRT(POWER(v.Longitude - @UserLongitude, 2) + POWER(v.Latitude - @UserLatitude, 2)) <= 0.0063"; // 0.0003 degrees is approximately 30 meters
+
+                        SqlCommand getRequestsNearChildCommand = new SqlCommand(getRequestsNearChildQuery, connection);
+                        getRequestsNearChildCommand.Parameters.AddWithValue("@UserLongitude", userLongitude);
+                        getRequestsNearChildCommand.Parameters.AddWithValue("@UserLatitude", userLatitude);
+
+                        List<object> requestList = new List<object>();
+
+                        using (SqlDataReader requestReader = getRequestsNearChildCommand.ExecuteReader())
+                        {
+                            while (requestReader.Read())
+                            {
+                                var request = new
+                                {
+                                    LostNotificationRequestID = Convert.ToInt32(requestReader["LostNotificationRequestID"]),
+                                    requestTitle = Convert.ToString(requestReader["requestTitle"]),
+                                    mainPersonInChargeID = Convert.ToInt32(requestReader["mainPersonInChargeID"]),
+                                    RequestLostNotificationDate = Convert.ToDateTime(requestReader["RequestLostNotificationDate"]),
+                                    NotificationStatus = Convert.ToString(requestReader["NotificationStatus"]),
+                                    Comments = Convert.ToString(requestReader["Comments"])
+                                };
+
+                                requestList.Add(request);
+                            }
+                        }
+
+                        if (requestList.Count > 0)
+                        {
+                            return Ok(requestList);
+                        }
+                        else
+                        {
+                            return NotFound("No requests found near the specified child's location.");
+                        }
+                    }
+                    else
+                    {
+                        return NotFound("Child not found");
+                    }
+                }
+            }
         }
 
     }
